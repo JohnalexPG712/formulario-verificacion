@@ -18,8 +18,11 @@ with open("credenciales.json", "w") as f:
 names = ['Inspector 1', 'Inspector 2']
 usernames = ['inspector1', 'inspector2']
 hashed_passwords = [
-    '$2b$12$Ku5x2fqRboX8hC1Bq4s9E.Zu2OZKRwRQAzJ4XYT3flcdwz3kGAlSO',  # 123
-    '$2b$12$7aZW9W2rNyz3aXs2hC5SR.tD7Q2v7JNP50T.kZWqHZ1RjQ8ZhzZGa'   # 456
+  names = ['Inspector 1', 'Inspector 2']
+usernames = ['inspector1', 'inspector2']
+hashed_passwords = [
+    "$2b$12$Ku5x2fqRboX8hC1Bq4s9E.Zu2OZKRwRQAzJ4XYT3flcdwz3kGAlSO",  # 123
+    "$2b$12$7aZW9W2rNyz3aXs2hC5SR.tD7Q2v7JNP50T.kZWqHZ1RjQ8ZhzZGa"   # 456
 ]
 
 auth = stauth.Authenticate(names, usernames, hashed_passwords, 'cookie_key', 'signature_key', cookie_expiry_days=1)
