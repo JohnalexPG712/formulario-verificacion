@@ -10,31 +10,51 @@ import uuid
 import json
 import streamlit_authenticator as stauth
 
-# === 1. Cargar credenciales desde secrets y guardarlas como archivo ===
-with open("credenciales.json", "w") as f:
-    json.dump(dict(st.secrets["credenciales_json"]), f)
+# ============ 1. Autenticación corregida (versión moderna) ============
+config = {
+    'credentials': {
+        'usernames': {
+            'inspector1': {
+                'name': 'Inspector 1',
+                'password': '$2b$12$Ku5x2fqRboX8hC1Bq4s9E.Zu2OZKRwRQAzJ4XYT3flcdwz3kGAlSO'  # 123
+            },
+            'inspector2': {
+                'name': 'Inspector 2',
+                'password': '$2b$12$7aZW9W2rNyz3aXs2hC5SR.tD7Q2v7JNP50T.kZWqHZ1RjQ8ZhzZGa'  # 456
+            }
+        }
+    },
+    'cookie': {
+        'name': 'verificador_cookie',
+        'key': 'firma_segura',
+        'expiry_days': 1
+    }
+}
 
-# === 2. Login de usuarios con contraseñas hasheadas ===
-names = ['Inspector 1', 'Inspector 2']
-usernames = ['inspector1', 'inspector2']
-hashed_passwords = [
-    "$2b$12$Ku5x2fqRboX8hC1Bq4s9E.Zu2OZKRwRQAzJ4XYT3flcdwz3kGAlSO",  # contraseña: 123
-    "$2b$12$7aZW9W2rNyz3aXs2hC5SR.tD7Q2v7JNP50T.kZWqHZ1RjQ8ZhzZGa"   # contraseña: 456
-]
-auth = stauth.Authenticate(names, usernames, hashed_passwords, 'cookie_key', 'signature_key', cookie_expiry_days=1)
-name, status, user = auth.login("Login", "main")
+auth = stauth.Authenticate(
+    config['credentials'],
+    config['cookie']['name'],
+    config['cookie']['key'],
+    config['cookie']['expiry_days']
+)
 
-if not status:
-    if status is False:
+name, auth_status, username = auth.login("Iniciar sesión", "main")
+
+if not auth_status:
+    if auth_status is False:
         st.error("Usuario o contraseña incorrectos")
-    elif status is None:
+    elif auth_status is None:
         st.warning("Ingresa tus credenciales")
     st.stop()
 
 auth.logout("Cerrar sesión", "sidebar")
 st.sidebar.success(f"Bienvenido, {name}")
 
-# === 3. Conectar con Google Sheets ===
+# ============ 2. Leer las credenciales de Google desde secrets ============
+with open("credenciales.json", "w") as f:
+    json.dump(dict(st.secrets["credenciales_json"]), f)
+
+# ============ 3. Conectar con Google Sheets ============
 def connect_sheets():
     scope = [
         "https://spreadsheets.google.com/feeds",
@@ -48,7 +68,7 @@ def connect_sheets():
 def append_row(sheet, row):
     sheet.append_row(row)
 
-# === 4. Generar PDF con firma y fotos ===
+# ============ 4. Generar PDF ============
 def gen_pdf(data, pics, sign, pdf_name):
     c = canvas.Canvas(pdf_name, pagesize=A4)
     y = 800
@@ -82,7 +102,7 @@ def gen_pdf(data, pics, sign, pdf_name):
     c.showPage()
     c.save()
 
-# === 5. Interfaz principal ===
+# ============ 5. Interfaz principal ============
 st.title("Formulario de Verificación Inspector de Operaciones")
 sheet = connect_sheets()
 
