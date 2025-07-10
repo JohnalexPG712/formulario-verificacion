@@ -10,21 +10,32 @@ import uuid
 import json
 import streamlit_authenticator as stauth
 
-# ============ 1. Autenticación generando hashes en tiempo real ============
-names = ["Inspector 1", "Inspector 2"]
-usernames = ["inspector1", "inspector2"]
-passwords = ["123", "456"]
-
-hashed_passwords = stauth.Hasher(passwords).generate()
+# ============ 1. Autenticación funcional con hashes precalculados ============
+config = {
+    'credentials': {
+        'usernames': {
+            'inspector1': {
+                'name': 'Inspector 1',
+                'password': '$2b$12$ZT34fY6FjDu.7Hp6fayN/uUM0F1A5jaIfAVGlShNPfOQxi2A/sWha'  # 123
+            },
+            'inspector2': {
+                'name': 'Inspector 2',
+                'password': '$2b$12$gqCBTWq0OoqxzqMz0THLmu3Et.TMfMFx1gASgB/daDMvSnQAKkrQC'  # 456
+            }
+        }
+    },
+    'cookie': {
+        'name': 'verificador_cookie',
+        'key': 'firma_segura',
+        'expiry_days': 1
+    }
+}
 
 auth = stauth.Authenticate(
-    {'usernames': {
-        usernames[0]: {'name': names[0], 'password': hashed_passwords[0]},
-        usernames[1]: {'name': names[1], 'password': hashed_passwords[1]}
-    }},
-    'verificador_cookie',
-    'firma_segura',
-    1
+    config['credentials'],
+    config['cookie']['name'],
+    config['cookie']['key'],
+    config['cookie']['expiry_days']
 )
 
 auth_status = auth.login(location="main")
