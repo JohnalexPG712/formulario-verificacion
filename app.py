@@ -10,17 +10,17 @@ import uuid
 import json
 import streamlit_authenticator as stauth
 
-# ============ 1. Autenticación corregida (versión moderna) ============
+# ============ 1. Autenticación corregida ============
 config = {
     'credentials': {
         'usernames': {
             'inspector1': {
                 'name': 'Inspector 1',
-                'password': '$2b$12$Ku5x2fqRboX8hC1Bq4s9E.Zu2OZKRwRQAzJ4XYT3flcdwz3kGAlSO'  # 123
+                'password': '$2b$12$Ku5x2fqRboX8hC1Bq4s9E.Zu2OZKRwRQAzJ4XYT3flcdwz3kGAlSO'
             },
             'inspector2': {
                 'name': 'Inspector 2',
-                'password': '$2b$12$7aZW9W2rNyz3aXs2hC5SR.tD7Q2v7JNP50T.kZWqHZ1RjQ8ZhzZGa'  # 456
+                'password': '$2b$12$7aZW9W2rNyz3aXs2hC5SR.tD7Q2v7JNP50T.kZWqHZ1RjQ8ZhzZGa'
             }
         }
     },
@@ -38,7 +38,7 @@ auth = stauth.Authenticate(
     config['cookie']['expiry_days']
 )
 
-name, auth_status, username = auth.login("Iniciar sesión", "main")
+name, auth_status, username = auth.login(location="main")
 
 if not auth_status:
     if auth_status is False:
@@ -50,7 +50,7 @@ if not auth_status:
 auth.logout("Cerrar sesión", "sidebar")
 st.sidebar.success(f"Bienvenido, {name}")
 
-# ============ 2. Leer las credenciales de Google desde secrets ============
+# ============ 2. Leer credenciales de Google ============
 with open("credenciales.json", "w") as f:
     json.dump(dict(st.secrets["credenciales_json"]), f)
 
