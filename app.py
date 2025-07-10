@@ -9,11 +9,12 @@ import os
 import uuid
 import json
 
-# ============ 1. Login personalizado sin bcrypt ============
+# ============ 1. Login personalizado ============
 USER_CREDENTIALS = {
     "inspector1": "123",
     "inspector2": "456",
-    "inspector3": "789"
+    "inspector3": "789",
+    "marcela": "abc123"
 }
 
 st.title("Acceso")
@@ -58,45 +59,58 @@ def append_row(sheet, row):
 def gen_pdf(data, pics, sign, pdf_name):
     c = canvas.Canvas(pdf_name, pagesize=A4)
     y = 800
+
     campos = [
         "Tipo", "Fecha", "Hora", "Lugar", "Inspector", "Cargo", "Usuario", "Placa",
-        "Descripción", "Cantidad", "Momento", "Otro", "Acompañamiento", "Aplica",
-        "Docs OK", "Material OK", "Control AMIGO", "Fotos", "Concepto"
+        "Descripción", "Cantidad", "Momentos de inspección", "¿Cuál otro?", "Acompañamiento",
+        "¿Aplica?", "Documentos OK", "Material OK", "Control AMIGO", "Fotos", "Concepto"
     ]
+
     for i, campo in enumerate(campos):
-        c.drawString(50, y, f"{campo}: {data[i]}")
+        texto = f"{campo}: {data[i]}"
+        c.drawString(50, y, texto)
         y -= 20
+        if y < 150:
+            c.showPage()
+            y = 800
 
     if sign:
-        img = Image.open(sign).resize((150, 50))
-        path = f"imagenes/sign_{uuid.uuid4().hex}.png"
-        img.save(path)
-        c.drawImage(path, 50, y - 60)
-        y -= 80
+        try:
+            img = Image.open(sign).resize((150, 50))
+            path = f"imagenes/sign_{uuid.uuid4().hex}.png"
+            img.save(path)
+            c.drawImage(path, 50, y - 60)
+            y -= 80
+        except:
+            c.drawString(50, y, "[Firma no válida]")
+            y -= 40
 
     for pic in pics:
         if y < 200:
             c.showPage()
             y = 800
-        img = Image.open(pic)
-        img.thumbnail((300, 300))
-        path = f"imagenes/pic_{uuid.uuid4().hex}.jpg"
-        img.save(path)
-        c.drawImage(path, 50, y - 180, width=200, height=150)
-        y -= 200
+        try:
+            img = Image.open(pic)
+            img.thumbnail((300, 300))
+            path = f"imagenes/pic_{uuid.uuid4().hex}.jpg"
+            img.save(path)
+            c.drawImage(path, 50, y - 180, width=200, height=150)
+            y -= 200
+        except:
+            c.drawString(50, y, "[Foto no válida]")
+            y -= 40
 
     c.showPage()
     c.save()
 
-# ============ 5. Interfaz principal ============
+# ============ 5. Interfaz del formulario ============
 st.sidebar.success(f"Bienvenido, {st.session_state.username}")
 st.title("Formulario de Verificación Inspector de Operaciones")
 sheet = connect_sheets()
 
 tipo = st.selectbox("Tipo de verificación:", [
     "MEYE: Material de empaque y embalaje.",
-    "MEE",
-    "MEC",
+    "MEE", "MEC",
     "Salida de desperdicios y residuos del proceso productivo o de la prestación del servicio.",
     "Destrucción.",
     "Diferencias de peso (+-5%) en mercancías menores o iguales 100 Kg.",
@@ -117,6 +131,7 @@ tipo = st.selectbox("Tipo de verificación:", [
     "Verificación ingresos del TAN con SAE.",
     "Traslado de mercancía entre usuarios."
 ])
+
 with st.form("formulario"):
     fecha = st.date_input("Fecha:", value=datetime.today())
     hora = st.time_input("Hora:")
@@ -125,15 +140,22 @@ with st.form("formulario"):
     placa = st.text_input("Placa del vehículo:")
     descripcion = st.text_area("Descripción de la mercancía:")
     cantidad = st.text_input("Cantidad:")
-    momento = st.radio("Momento de inspección:", ["Cargue", "Descargue", "En piso", "Báscula", "Otro"])
-    otro = st.text_input("¿Cuál otro?", disabled=("otro" not in momento.lower()))
-    acomp = st.checkbox("¿Acompañamiento total?")
-    aplica = st.checkbox("¿No aplica?")
-    docs_ok = st.radio("¿Corresponde a documentos?", ["Sí", "No"])
-    material_ok = st.radio("¿Corresponde al material?", ["Sí", "No"])
-    control_amigo = st.radio("¿Controlado en AMIGO?", ["Sí", "No"])
-    fotos_check = st.checkbox("¿Registro fotográfico?")
-    concepto = st.radio("Concepto:", ["Conforme", "No conforme"])
+
+    momentos = st.multiselect(
+        "¿En qué momento se realizó inspección física?",
+        ["Cargue", "Descargue", "Mercancía en Piso", "Báscula", "Otro"]
+    )
+    otro_momento = ""
+    if "Otro" in momentos:
+        otro_momento = st.text_input("¿Cuál?", placeholder="Especifique el otro momento")
+
+    acomp = st.radio("¿Se dio acompañamiento total al cargue/descargue?", ["Sí", "No", "No aplica"])
+    docs_ok = st.radio("¿La mercancía corresponde con los documentos?", ["Sí", "No"])
+    material_ok = st.radio("¿La mercancía corresponde a empaque y embalaje?", ["Sí", "No"])
+    control_amigo = st.radio("¿Está controlado en el sistema AMIGO?", ["Sí", "No"])
+    fotos_check = st.radio("¿Registro fotográfico (obligatorio)?", ["Sí", "No"])
+    concepto = st.radio("Concepto de la verificación:", ["Conforme", "No conforme"])
+
     firma = st.file_uploader("Firma del inspector", type=["png", "jpg", "jpeg"])
     fotos = st.file_uploader("Fotos de verificación", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
 
@@ -141,9 +163,10 @@ with st.form("formulario"):
 
 if enviar:
     fila = [
-        tipo, fecha.strftime("%Y-%m-%d"), hora.strftime("%H:%M"), lugar, st.session_state.username, "-", usuario, placa,
-        descripcion, cantidad, momento, otro, "Sí" if acomp else "No", "Sí" if aplica else "No",
-        docs_ok, material_ok, control_amigo, "Sí" if fotos_check else "No", concepto
+        tipo, fecha.strftime("%Y-%m-%d"), hora.strftime("%H:%M"), lugar,
+        st.session_state.username, "-", usuario, placa, descripcion, cantidad,
+        ", ".join(momentos), otro_momento, acomp, "-", docs_ok,
+        material_ok, control_amigo, fotos_check, concepto
     ]
     append_row(sheet, fila)
     nombre_pdf = f"verif_{placa}_{fecha.strftime('%Y%m%d')}.pdf"
