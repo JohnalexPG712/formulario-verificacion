@@ -406,7 +406,6 @@ with st.form("formulario"):
         elif pregunta["type"] == "checkboxes":
             datos[label] = ", ".join(st.multiselect(label, pregunta["options"]))
 
-    # Botón y uploader, uno debajo del otro, uploader alargado
     submit = st.form_submit_button("✅ Guardar y generar PDF")
     fotos = st.file_uploader(
         "Sube fotos de la verificación (opcional)",
@@ -414,8 +413,7 @@ with st.form("formulario"):
         accept_multiple_files=True,
         label_visibility="visible"
     )
-    # Puedes agregar un separador visual si lo deseas:
-    # st.markdown("---")
+
 # ========== ENVÍO Y VALIDACIÓN ==========
 if 'submit' in locals() and submit:
     campos_vacios = [campo for campo, valor in datos.items() if isinstance(valor, str) and not valor.strip()]
