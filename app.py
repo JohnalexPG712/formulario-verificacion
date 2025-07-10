@@ -10,7 +10,7 @@ import uuid
 import json
 import streamlit_authenticator as stauth
 
-# ============ 1. Autenticación corregida ============
+# ============ 1. Autenticación moderna corregida ============
 config = {
     'credentials': {
         'usernames': {
@@ -38,7 +38,8 @@ auth = stauth.Authenticate(
     config['cookie']['expiry_days']
 )
 
-name, auth_status, username = auth.login(location="main")
+# Solo obtener estado y luego nombre con get_username()
+auth_status = auth.login(location="main")
 
 if not auth_status:
     if auth_status is False:
@@ -47,10 +48,11 @@ if not auth_status:
         st.warning("Ingresa tus credenciales")
     st.stop()
 
+name = auth.get_username()
 auth.logout("Cerrar sesión", "sidebar")
 st.sidebar.success(f"Bienvenido, {name}")
 
-# ============ 2. Leer credenciales de Google ============
+# ============ 2. Leer las credenciales de Google desde secrets ============
 with open("credenciales.json", "w") as f:
     json.dump(dict(st.secrets["credenciales_json"]), f)
 
