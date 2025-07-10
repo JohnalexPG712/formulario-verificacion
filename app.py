@@ -406,10 +406,9 @@ with st.form("formulario"):
             datos[label] = ", ".join(st.multiselect(label, pregunta["options"]))
 
     # Distribución horizontal: botón y carga de fotos
-    col1, col2 = st.columns([1, 1])
+    col1, col2 = st.columns([1, 2])
     with col1:
         submit = st.form_submit_button("✅ Guardar y generar PDF")
-    with col2:
         fotos = st.file_uploader(
             "Sube fotos de la verificación (opcional)",
             type=["jpg", "jpeg", "png"],
