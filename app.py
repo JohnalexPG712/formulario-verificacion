@@ -33,16 +33,6 @@ if not st.session_state.logged_in:
                 st.error("Credenciales incorrectas")
     st.stop()
 
-# ========== TÍTULO DEL FORMULARIO ==========
-st.markdown(
-    """
-    <div style='background-color: #f0f2f6; padding: 18px 8px 18px 8px; border-radius: 10px; margin-bottom: 18px; border: 1px solid #DDD;'>
-        <h2 style='color: #262730; text-align:center; margin:0;'>Lista de verificación Inspector de Operaciones</h2>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
 # ========== CARGAR CREDENCIALES GOOGLE ==========
 with open("credenciales.json", "w") as f:
     json.dump(dict(st.secrets["credenciales_json"]), f)
@@ -374,13 +364,21 @@ TIPOS_PREGUNTAS = {
     ]
 }
 
+# ========== FORMULARIO DINÁMICO ==========
+st.sidebar.success(f"Usuario: {st.session_state.username}")
+
 sheet = connect_sheets()
-# ========== CAMPOS MANUALES Y SELECCIÓN DE TIPO ==========
+
+# Título grande y destacado siempre arriba
+st.title("Lista de verificación Inspector de Operaciones")
+
+# Campos manuales antes del formulario
 nombre_funcionario = st.text_input("Nombre del funcionario")
 cargo_funcionario = st.text_input("Cargo del funcionario")
+
+# Tipo de verificación fuera del formulario para refresco dinámico
 tipo = st.selectbox("Tipo de verificación:", list(TIPOS_PREGUNTAS.keys()))
 
-# ========== FORMULARIO ==========
 with st.form("formulario"):
     trazabilidad = generar_trazabilidad(tipo)
     fecha = st.date_input("Fecha de verificación:", value=datetime.today())
@@ -408,17 +406,13 @@ with st.form("formulario"):
         elif pregunta["type"] == "checkboxes":
             datos[label] = ", ".join(st.multiselect(label, pregunta["options"]))
 
-    # --- Botón y uploader alineados horizontalmente ---
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        submit = st.form_submit_button("✅ Guardar y generar PDF")
-    with col2:
-        fotos = st.file_uploader(
-            "Sube fotos de la verificación (opcional)",
-            type=["jpg", "jpeg", "png"],
-            accept_multiple_files=True,
-            label_visibility="visible"
-        )
+    submit = st.form_submit_button("✅ Guardar y generar PDF")
+    fotos = st.file_uploader(
+        "Sube fotos de la verificación (opcional)",
+        type=["jpg", "jpeg", "png"],
+        accept_multiple_files=True,
+        label_visibility="visible"
+    )
 
 # ========== ENVÍO Y VALIDACIÓN ==========
 if 'submit' in locals() and submit:
