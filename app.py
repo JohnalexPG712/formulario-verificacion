@@ -11,9 +11,9 @@ import uuid
 
 # ========== LOGIN ==========
 USER_CREDENTIALS = {
-    "inspector1": {"password": "123", "nombre": "Carlos Pérez", "cargo": "Inspector A"},
-    "inspector2": {"password": "456", "nombre": "Laura Gómez", "cargo": "Inspector B"},
-    "inspector3": {"password": "789", "nombre": "Juan Ruiz", "cargo": "Supervisor"}
+    "inspector1": {"password": "123"},
+    "inspector2": {"password": "456"},
+    "inspector3": {"password": "789"}
 }
 
 if "logged_in" not in st.session_state:
@@ -26,12 +26,9 @@ if not st.session_state.logged_in:
         password = st.text_input("Contraseña", type="password")
         login_btn = st.form_submit_button("Acceder")
         if login_btn:
-            user = USER_CREDENTIALS.get(username)
-            if user and user["password"] == password:
+            if username in USER_CREDENTIALS and USER_CREDENTIALS[username]["password"] == password:
                 st.session_state.logged_in = True
                 st.session_state.username = username
-                st.session_state.nombre = user["nombre"]
-                st.session_state.cargo = user["cargo"]
             else:
                 st.error("Credenciales incorrectas")
     st.stop()
@@ -63,7 +60,6 @@ def generar_pdf(datos, fotos, trazabilidad):
     c = canvas.Canvas(archivo_pdf, pagesize=A4)
     y = 800
 
-    # Logo
     logo_path = "logo.png"
     if os.path.exists(logo_path):
         c.drawImage(logo_path, 50, y-40, width=100, height=50)
@@ -102,6 +98,7 @@ def generar_pdf(datos, fotos, trazabilidad):
     c.showPage()
     c.save()
     return archivo_pdf
+
 
 # ========== PREGUNTAS SEGÚN TIPO ==========
 TIPOS_PREGUNTAS = {
@@ -369,15 +366,15 @@ TIPOS_PREGUNTAS = {
 }
 
 # ========== FORMULARIO DINÁMICO ==========
-st.sidebar.success(f"Inspector: {st.session_state.nombre} – {st.session_state.cargo}")
+st.sidebar.success(f"Usuario: {st.session_state.username}")
+
 sheet = connect_sheets()
 
 st.title("Lista de verificación Inspector de Operaciones")
 
 with st.form("formulario"):
-    st.markdown(f"**Funcionario:** {st.session_state.nombre}")
-    st.markdown(f"**Cargo:** {st.session_state.cargo}")
-
+    nombre_funcionario = st.text_input("Nombre del funcionario")
+    cargo_funcionario = st.text_input("Cargo del funcionario")
     tipo = st.selectbox("Tipo de verificación:", list(TIPOS_PREGUNTAS.keys()))
     trazabilidad = generar_trazabilidad(tipo)
     fecha = st.date_input("Fecha de verificación:", value=datetime.today())
@@ -387,8 +384,8 @@ with st.form("formulario"):
     datos = {
         "Trazabilidad": trazabilidad,
         "Tipo de verificación": tipo,
-        "Funcionario": st.session_state.nombre,
-        "Cargo": st.session_state.cargo,
+        "Funcionario": nombre_funcionario,
+        "Cargo": cargo_funcionario,
         "Fecha": fecha.strftime("%Y-%m-%d"),
         "Hora": hora.strftime("%H:%M"),
         "Lugar": lugar
@@ -409,7 +406,7 @@ with st.form("formulario"):
     with col1:
         submit = st.form_submit_button("✅ Guardar y generar PDF")
     with col2:
-        fotos = st.file_uploader("Sube fotos de la verificación (opcional)", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
+        fotos = st.file_uploader("Sube fotos de la verificación (opcional)", type=["jpg", "jpeg", "png"], accept_multiple_files=True, label_visibility="visible")
 
 # ========== ENVÍO Y VALIDACIÓN ==========
 if 'submit' in locals() and submit:
