@@ -16,11 +16,11 @@ config = {
         'usernames': {
             'inspector1': {
                 'name': 'Inspector 1',
-                'password': '$2b$12$Ku5x2fqRboX8hC1Bq4s9E.Zu2OZKRwRQAzJ4XYT3flcdwz3kGAlSO'
+                'password': '$2b$12$ZT34fY6FjDu.7Hp6fayN/uUM0F1A5jaIfAVGlShNPfOQxi2A/sWha'
             },
             'inspector2': {
                 'name': 'Inspector 2',
-                'password': '$2b$12$7aZW9W2rNyz3aXs2hC5SR.tD7Q2v7JNP50T.kZWqHZ1RjQ8ZhzZGa'
+                'password': '$2b$12$gqCBTWq0OoqxzqMz0THLmu3Et.TMfMFx1gASgB/daDMvSnQAKkrQC'
             }
         }
     },
@@ -38,7 +38,6 @@ auth = stauth.Authenticate(
     config['cookie']['expiry_days']
 )
 
-# Solo obtener estado y luego nombre con get_username()
 auth_status = auth.login(location="main")
 
 if not auth_status:
