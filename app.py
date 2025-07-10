@@ -1,3 +1,5 @@
+# --- INICIO DEL SCRIPT ---
+
 import streamlit as st
 from datetime import datetime
 import gspread
@@ -105,6 +107,26 @@ def generar_pdf(datos, fotos, trazabilidad):
 
 # ========== PREGUNTAS SEGÚN TIPO ==========
 TIPOS_PREGUNTAS = {
+    # --- Pega aquí el gran diccionario de los 20 tipos, lo tienes en el mensaje anterior ---
+    
+    "Salida de desperdicios y residuos del proceso productivo o de la prestación del servicio": [
+        {"label": "Usuario", "type": "text"},
+        {"label": "Placa del vehículo", "type": "text"},
+        {"label": "No. FMM", "type": "text"},
+        {"label": "Descripción de la mercancía", "type": "textarea"},
+        {"label": "Cantidades (bultos o unidades)", "type": "text"},
+        {"label": "¿La salida es parcializada?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿En que momento se realizó inspección física?", "type": "radio", "options": ["Cargue o descargue", "Mercancía en Piso", "Báscula", "Otro"]},
+        {"label": "¿Cual? (si selecciona Otro en la pregunta anterior)", "type": "text"},
+        {"label": "¿Acompañamiento a la totalidad del cargue / descargue?", "type": "radio", "options": ["SI", "NO", "No aplica"]},
+        {"label": "¿La mercancía física corresponde con la descripción de los documentos?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿La mercancía a retirar corresponde con la descripción y origen reportada por el usuario?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Se evidencian divisas, armas, estupefacientes, narcóticos o mercancía prohibida?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Faltantes respecto a la documentación soporte?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "Concepto de la verificación", "type": "radio", "options": ["Conforme", "No conforme"]},
+    ],
+    # ... Pega aquí los otros 19 tipos siguiendo el formato del mensaje anterior ...
+    TIPOS_PREGUNTAS = {
     "Salida de desperdicios y residuos del proceso productivo o de la prestación del servicio": [
         {"label": "Usuario", "type": "text"},
         {"label": "Placa del vehículo", "type": "text"},
@@ -365,19 +387,44 @@ TIPOS_PREGUNTAS = {
         {"label": "¿El material de empaque y embalaje a despachar se controla dentro del inventario del sistema AMIGO?", "type": "radio", "options": ["SI", "NO"]},
         {"label": "Registro fotográfico de la diligencia de inspección realizado", "type": "radio", "options": ["SI"]},
         {"label": "Concepto de la verificación", "type": "radio", "options": ["Conforme", "No conforme"]},
-    ],
+    ]
 }
 
-  for pregunta in TIPOS_PREGUNTAS[tipo]:
-    label = pregunta["label"]
-    if pregunta["type"] == "text":
-        datos[label] = st.text_input(label)
-    elif pregunta["type"] == "textarea":
-        datos[label] = st.text_area(label)
-    elif pregunta["type"] == "radio":
-        datos[label] = st.radio(label, pregunta["options"])
-    elif pregunta["type"] == "checkboxes":
-        datos[label] = ", ".join(st.multiselect(label, pregunta["options"]))
+# ========== FORMULARIO DINÁMICO ==========
+st.sidebar.success(f"Inspector: {st.session_state.nombre} – {st.session_state.cargo}")
+sheet = connect_sheets()
+
+tipo = st.selectbox("Tipo de verificación:", list(TIPOS_PREGUNTAS.keys()))
+st.subheader(f"Formulario - {tipo}")
+
+with st.form("formulario"):
+    fecha = st.date_input("Fecha de verificación:", value=datetime.today())
+    hora = st.time_input("Hora:")
+    lugar = st.text_input("Lugar:")
+    trazabilidad = generar_trazabilidad(tipo)
+    fotos = st.file_uploader("Sube fotos de la verificación (opcional)", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
+
+    datos = {
+        "Trazabilidad": trazabilidad,
+        "Tipo de verificación": tipo,
+        "Fecha": fecha.strftime("%Y-%m-%d"),
+        "Hora": hora.strftime("%H:%M"),
+        "Lugar": lugar,
+        "Inspector": st.session_state.nombre,
+        "Cargo": st.session_state.cargo
+    }
+
+    for pregunta in TIPOS_PREGUNTAS[tipo]:
+        label = pregunta["label"]
+        if pregunta["type"] == "text":
+            datos[label] = st.text_input(label)
+        elif pregunta["type"] == "textarea":
+            datos[label] = st.text_area(label)
+        elif pregunta["type"] == "radio":
+            datos[label] = st.radio(label, pregunta["options"])
+        elif pregunta["type"] == "checkboxes":
+            datos[label] = ", ".join(st.multiselect(label, pregunta["options"]))
+
     submit = st.form_submit_button("✅ Guardar y generar PDF")
 
 # ========== ENVÍO Y VALIDACIÓN ==========
@@ -391,3 +438,5 @@ if submit:
         st.success("✅ Formulario guardado y PDF generado.")
         with open(nombre_pdf, "rb") as f:
             st.download_button("📄 Descargar PDF", f, file_name=nombre_pdf)
+
+# --- FIN DEL SCRIPT ---
