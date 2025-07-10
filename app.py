@@ -5,11 +5,9 @@ from oauth2client.service_account import ServiceAccountCredentials
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from PIL import Image
-import os
-import uuid
 import json
 
-# ============ 1. Login con visibilidad condicional ============
+# ========= LOGIN =========
 USER_CREDENTIALS = {
     "inspector1": {"password": "123", "nombre": "Carlos Pérez", "cargo": "Inspector A"},
     "inspector2": {"password": "456", "nombre": "Laura Gómez", "cargo": "Inspector B"},
@@ -36,11 +34,10 @@ if not st.session_state.logged_in:
                 st.error("Credenciales incorrectas")
     st.stop()
 
-# ============ 2. Cargar credenciales de Google desde secrets ============
+# ========= CONEXIÓN GOOGLE SHEETS =========
 with open("credenciales.json", "w") as f:
     json.dump(dict(st.secrets["credenciales_json"]), f)
 
-# ============ 3. Conexión a Google Sheets ============
 def connect_sheets():
     scope = [
         "https://spreadsheets.google.com/feeds",
@@ -54,7 +51,7 @@ def connect_sheets():
 def append_row(sheet, row):
     sheet.append_row(row)
 
-# ============ 4. Generar PDF ============
+# ========= GENERAR PDF =========
 def gen_pdf(data, pdf_name):
     c = canvas.Canvas(pdf_name, pagesize=A4)
     y = 800
@@ -67,17 +64,17 @@ def gen_pdf(data, pdf_name):
     c.showPage()
     c.save()
 
-# ============ 5. Formulario dinámico ============
+# ========= FORMULARIO =========
 st.sidebar.success(f"Bienvenido {st.session_state.nombre} - {st.session_state.cargo}")
 sheet = connect_sheets()
 
 tipo = st.selectbox("Tipo de verificación:", [
     "Conteo",
     "MEYE: Material de empaque y embalaje.",
-    "Destrucción",
-    "Salida de desperdicios y residuos del proceso productivo o de la prestación del servicio.",
-    "Cerramiento perimetral"
+    "Destrucción"
 ])
+
+st.subheader(f"Formulario de Verificación - {tipo}")
 
 with st.form("formulario"):
     fecha = st.date_input("Fecha:", value=datetime.today())
@@ -94,42 +91,52 @@ with st.form("formulario"):
 
     if tipo == "Conteo":
         datos["Usuario"] = st.text_input("Usuario:")
-        datos["Documento comercial"] = st.text_input("Tipo y número de documento que ampara la operación:")
-        datos["Descripción de la mercancía"] = st.text_area("Descripción de la mercancía:")
-        datos["Cantidad"] = st.text_input("Cantidades (bultos o unidades):")
-        datos["Ubicada en el área correspondiente"] = st.radio("¿La mercancía está ubicada en el área correspondiente?", ["Sí", "NO"])
-        datos["Nivel de ocupación permite inspección"] = st.radio("¿El nivel de ocupación permite la inspección?", ["Sí", "NO"])
-        datos["Personas no autorizadas presentes"] = st.radio("¿Hay personas no autorizadas?", ["Sí", "NO"])
-        datos["Corresponde con documentos"] = st.radio("¿La mercancía corresponde con los documentos?", ["Sí", "NO"])
-        datos["Mercancía prohibida presente"] = st.radio("¿Se evidencian armas, estupefacientes, etc.?", ["Sí", "NO"])
-        datos["Faltantes de mercancía"] = st.radio("¿Se evidencian faltantes respecto a la documentación?", ["Sí", "NO"])
-        datos["Sobrantes de mercancía"] = st.radio("¿Se evidencian sobrantes respecto a la documentación?", ["Sí", "NO"])
-        datos["Concepto"] = st.radio("Concepto de la verificación:", ["Conforme", "No conforme"])
+        datos["Documento"] = st.text_input("Tipo y número de documento:")
+        datos["Descripción"] = st.text_area("Descripción de la mercancía:")
+        datos["Cantidad"] = st.text_input("Cantidad (bultos o unidades):")
+        datos["Ubicada en área"] = st.radio("¿Ubicada en el área correspondiente?", ["Sí", "NO"])
+        datos["Nivel de ocupación"] = st.radio("¿Nivel de ocupación permite inspección?", ["Sí", "NO"])
+        datos["Personas no autorizadas"] = st.radio("¿Hay personas no autorizadas?", ["Sí", "NO"])
+        datos["Coincide con documentos"] = st.radio("¿Coincide con los documentos?", ["Sí", "NO"])
+        datos["Mercancía prohibida"] = st.radio("¿Mercancía prohibida presente?", ["Sí", "NO"])
+        datos["Faltantes"] = st.radio("¿Faltantes respecto documentación?", ["Sí", "NO"])
+        datos["Sobrantes"] = st.radio("¿Sobrantes respecto documentación?", ["Sí", "NO"])
+        datos["Concepto"] = st.radio("Concepto:", ["Conforme", "No conforme"])
 
     elif tipo == "MEYE: Material de empaque y embalaje.":
         datos["Usuario"] = st.text_input("Usuario:")
-        datos["Placa del vehículo"] = st.text_input("Placa del vehículo:")
-        datos["Descripción de la mercancía"] = st.text_area("Descripción de la mercancía:")
-        datos["Cantidad"] = st.text_input("Cantidad (bultos o unidades):")
-        datos["Momento de inspección"] = st.radio("Momento de inspección:", ["Cargue", "Descargue", "En piso", "Báscula", "Otro"])
-        datos["Acompañamiento total"] = st.radio("¿Se dio acompañamiento al cargue/descargue?", ["Sí", "NO", "No aplica"])
-        datos["Corresponde con documentos"] = st.radio("¿Corresponde con los documentos?", ["Sí", "NO"])
-        datos["Material es empaque/embalaje"] = st.radio("¿Corresponde a material de empaque/embalaje?", ["Sí", "NO"])
-        datos["Controlado en AMIGO"] = st.radio("¿Controlado en el sistema AMIGO?", ["Sí", "NO"])
+        datos["Placa"] = st.text_input("Placa del vehículo:")
+        datos["Descripción"] = st.text_area("Descripción de la mercancía:")
+        datos["Cantidad"] = st.text_input("Cantidad:")
+        datos["Momento"] = st.radio("Momento:", ["Cargue", "Descargue", "En piso", "Báscula", "Otro"])
+        datos["Acompañamiento"] = st.radio("¿Acompañamiento total?", ["Sí", "NO", "No aplica"])
+        datos["Coincide con documentos"] = st.radio("¿Coincide con documentos?", ["Sí", "NO"])
+        datos["Es material de empaque"] = st.radio("¿Es material de empaque?", ["Sí", "NO"])
+        datos["Controlado en AMIGO"] = st.radio("¿Controlado en AMIGO?", ["Sí", "NO"])
         datos["Registro fotográfico"] = st.radio("¿Registro fotográfico realizado?", ["Sí", "NO"])
-        datos["Concepto"] = st.radio("Concepto de la verificación:", ["Conforme", "No conforme"])
+        datos["Concepto"] = st.radio("Concepto:", ["Conforme", "No conforme"])
 
-    else:
-        datos["Observaciones"] = st.text_area("Observaciones:")
-        datos["Concepto"] = st.radio("Concepto de la verificación:", ["Conforme", "No conforme"])
+    elif tipo == "Destrucción":
+        datos["Usuario"] = st.text_input("Usuario:")
+        datos["Placa"] = st.text_input("Placa del vehículo:")
+        datos["Descripción"] = st.text_area("Descripción de la mercancía:")
+        datos["Cantidad"] = st.text_input("Cantidad:")
+        datos["Acta de destrucción"] = st.text_input("Acta de destrucción No.:")
+        datos["Corresponde a inventario"] = st.radio("¿Corresponde al inventario?", ["Sí", "NO"])
+        datos["Corresponde con acta"] = st.radio("¿Corresponde con el acta?", ["Sí", "NO"])
+        datos["Concepto"] = st.radio("Concepto:", ["Conforme", "No conforme"])
 
     enviar = st.form_submit_button("✅ Guardar y generar PDF")
 
 if enviar:
-    fila = list(datos.values())
-    append_row(sheet, fila)
-    pdf_file = f"verificacion_{tipo.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d%H%M')}.pdf"
-    gen_pdf(datos, pdf_file)
-    st.success("✅ Verificación guardada y PDF generado.")
-    with open(pdf_file, "rb") as f:
-        st.download_button("📄 Descargar PDF", f, file_name=pdf_file)
+    vacios = [k for k, v in datos.items() if isinstance(v, str) and not v.strip()]
+    if vacios:
+        st.error(f"Faltan campos obligatorios: {', '.join(vacios)}")
+    else:
+        fila = list(datos.values())
+        append_row(sheet, fila)
+        pdf_file = f"verif_{tipo.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d%H%M')}.pdf"
+        gen_pdf(datos, pdf_file)
+        st.success("✅ Verificación guardada y PDF generado.")
+        with open(pdf_file, "rb") as f:
+            st.download_button("📄 Descargar PDF", f, file_name=pdf_file)
