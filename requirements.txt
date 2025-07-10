@@ -3,5 +3,4 @@ gspread
 oauth2client
 reportlab
 pillow
-streamlit-authenticator
 bcrypt
