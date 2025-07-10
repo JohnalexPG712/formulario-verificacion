@@ -10,17 +10,19 @@ import uuid
 import json
 import streamlit_authenticator as stauth
 
-# === 1. Cargar las credenciales desde secrets y guardarlas temporalmente ===
+# === 1. Cargar credenciales desde secrets y guardarlas como archivo ===
 with open("credenciales.json", "w") as f:
     json.dump(dict(st.secrets["credenciales_json"]), f)
 
-# === 2. Login de usuarios ===
+# === 2. Login de usuarios con contraseñas hasheadas ===
 names = ['Inspector 1', 'Inspector 2']
 usernames = ['inspector1', 'inspector2']
-passwords = ['123', '456']
-hashed = stauth.Hasher(passwords).generate()
+hashed_passwords = [
+    '$2b$12$Ku5x2fqRboX8hC1Bq4s9E.Zu2OZKRwRQAzJ4XYT3flcdwz3kGAlSO',  # 123
+    '$2b$12$7aZW9W2rNyz3aXs2hC5SR.tD7Q2v7JNP50T.kZWqHZ1RjQ8ZhzZGa'   # 456
+]
 
-auth = stauth.Authenticate(names, usernames, hashed, 'cookie_key', 'signature_key', cookie_expiry_days=1)
+auth = stauth.Authenticate(names, usernames, hashed_passwords, 'cookie_key', 'signature_key', cookie_expiry_days=1)
 name, status, user = auth.login("Login", "main")
 
 if not status:
@@ -47,16 +49,16 @@ def connect_sheets():
 def append_row(sheet, row):
     sheet.append_row(row)
 
-# === 4. Generar PDF ===
+# === 4. Generar PDF con firma y fotos ===
 def gen_pdf(data, pics, sign, pdf_name):
     c = canvas.Canvas(pdf_name, pagesize=A4)
     y = 800
-    fields = [
+    campos = [
         "Tipo", "Fecha", "Hora", "Lugar", "Inspector", "Cargo", "Usuario", "Placa",
         "Descripción", "Cantidad", "Momento", "Otro", "Acompañamiento", "Aplica",
         "Docs OK", "Material OK", "Control AMIGO", "Fotos", "Concepto"
     ]
-    for i, campo in enumerate(fields):
+    for i, campo in enumerate(campos):
         c.drawString(50, y, f"{campo}: {data[i]}")
         y -= 20
 
