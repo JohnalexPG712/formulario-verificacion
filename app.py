@@ -5,7 +5,9 @@ from oauth2client.service_account import ServiceAccountCredentials
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from PIL import Image
+import os
 import json
+import uuid
 
 # ========= LOGIN =========
 USER_CREDENTIALS = {
@@ -34,10 +36,11 @@ if not st.session_state.logged_in:
                 st.error("Credenciales incorrectas")
     st.stop()
 
-# ========= CONEXIÓN GOOGLE SHEETS =========
+# ========= CARGAR CREDENCIALES GOOGLE =========
 with open("credenciales.json", "w") as f:
     json.dump(dict(st.secrets["credenciales_json"]), f)
 
+# ========= CONEXIÓN A GOOGLE SHEETS =========
 def connect_sheets():
     scope = [
         "https://spreadsheets.google.com/feeds",
@@ -48,39 +51,90 @@ def connect_sheets():
     client = gspread.authorize(creds)
     return client.open("F6O-OP-04V2 - Lista de Verificación del Inspector de Operaciones Prueba").sheet1
 
-def append_row(sheet, row):
-    sheet.append_row(row)
+# ========= GENERAR TRAZABILIDAD =========
+def generar_trazabilidad(tipo):
+    fecha = datetime.now().strftime("%Y%m%d")
+    codigo = uuid.uuid4().hex[:4].upper()
+    return f"F6O-{tipo.upper().split()[0]}-{fecha}-{codigo}"
 
-# ========= GENERAR PDF =========
-def gen_pdf(data, pdf_name):
-    c = canvas.Canvas(pdf_name, pagesize=A4)
+# ========= GENERAR PDF CON FOTOS =========
+def generar_pdf(datos, fotos, trazabilidad):
+    archivo_pdf = f"{trazabilidad}.pdf"
+    c = canvas.Canvas(archivo_pdf, pagesize=A4)
     y = 800
-    for campo, valor in data.items():
+
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(50, y, f"FORMULARIO DE VERIFICACIÓN - {trazabilidad}")
+    y -= 30
+    c.setFont("Helvetica", 10)
+
+    for campo, valor in datos.items():
         c.drawString(50, y, f"{campo}: {valor}")
         y -= 20
         if y < 150:
             c.showPage()
             y = 800
+
+    if fotos:
+        for foto in fotos:
+            try:
+                img = Image.open(foto)
+                img.thumbnail((300, 300))
+                temp_path = f"imagenes/temp_{uuid.uuid4().hex}.jpg"
+                img.save(temp_path)
+                c.drawImage(temp_path, 50, y - 200, width=250, height=150)
+                y -= 220
+                if y < 200:
+                    c.showPage()
+                    y = 800
+            except:
+                c.drawString(50, y, "[Error al cargar imagen]")
+                y -= 20
+
     c.showPage()
     c.save()
+    return archivo_pdf
 
-# ========= FORMULARIO =========
-st.sidebar.success(f"Bienvenido {st.session_state.nombre} - {st.session_state.cargo}")
+# ========= FORMULARIO DINÁMICO =========
+st.sidebar.success(f"Inspector: {st.session_state.nombre} – {st.session_state.cargo}")
 sheet = connect_sheets()
 
-tipo = st.selectbox("Tipo de verificación:", [
+# Lista de tipos
+tipos_verificacion = [
     "Conteo",
     "MEYE: Material de empaque y embalaje.",
-    "Destrucción"
-])
+    "Destrucción",
+    "Salida de desperdicios y residuos del proceso productivo o de la prestación del servicio.",
+    "Diferencias de peso (+-5%) en mercancías menores o iguales 100 Kg.",
+    "Inspección de mantenimiento de Contenedores o unidades de carga.",
+    "Inventarios de vehículos usuarios de Patios.",
+    "Modificación de área.",
+    "Reimportación en el mismo estado.",
+    "Residuos peligrosos y/o Contaminados que no hacen parte del proceso productivo o prestación del servicio.",
+    "Salida de chatarra que no hace parte del proceso productivo o prestación del servicio.",
+    "Salida a Proceso Parcial y/o pruebas técnicas.",
+    "Salida a Revisión, Reparación y/o Mantenimiento, pruebas técnicas.",
+    "Reingreso por Proceso Parcial y/o pruebas técnicas.",
+    "Reingreso por Revisión, Reparación y/o Mantenimiento, pruebas técnicas.",
+    "Acompañamiento en el ingreso y salida de mercancía que no es para ningún usuario.",
+    "Cerramiento perimetral.",
+    "Recorrido general al parque industrial o área declarada como Zona Franca.",
+    "Verificación ingresos del TAN con SAE.",
+    "Traslado de mercancía entre usuarios."
+]
 
-st.subheader(f"Formulario de Verificación - {tipo}")
+tipo = st.selectbox("Tipo de verificación:", tipos_verificacion)
+st.subheader(f"Formulario - {tipo}")
 
 with st.form("formulario"):
-    fecha = st.date_input("Fecha:", value=datetime.today())
+    fecha = st.date_input("Fecha de verificación:", value=datetime.today())
     hora = st.time_input("Hora:")
     lugar = st.text_input("Lugar:")
+    trazabilidad = generar_trazabilidad(tipo)
+    fotos = st.file_uploader("Sube fotos de la verificación (opcional)", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
+
     datos = {
+        "Trazabilidad": trazabilidad,
         "Tipo de verificación": tipo,
         "Fecha": fecha.strftime("%Y-%m-%d"),
         "Hora": hora.strftime("%H:%M"),
@@ -89,54 +143,46 @@ with st.form("formulario"):
         "Cargo": st.session_state.cargo
     }
 
+    # Preguntas específicas según tipo
     if tipo == "Conteo":
         datos["Usuario"] = st.text_input("Usuario:")
-        datos["Documento"] = st.text_input("Tipo y número de documento:")
+        datos["Documento"] = st.text_input("Tipo y número de documento comercial:")
         datos["Descripción"] = st.text_area("Descripción de la mercancía:")
         datos["Cantidad"] = st.text_input("Cantidad (bultos o unidades):")
-        datos["Ubicada en área"] = st.radio("¿Ubicada en el área correspondiente?", ["Sí", "NO"])
-        datos["Nivel de ocupación"] = st.radio("¿Nivel de ocupación permite inspección?", ["Sí", "NO"])
-        datos["Personas no autorizadas"] = st.radio("¿Hay personas no autorizadas?", ["Sí", "NO"])
-        datos["Coincide con documentos"] = st.radio("¿Coincide con los documentos?", ["Sí", "NO"])
+        datos["Ubicada en área correspondiente"] = st.radio("¿Ubicada en área correspondiente?", ["Sí", "NO"])
+        datos["Nivel ocupación adecuado"] = st.radio("¿Nivel ocupación permite inspección?", ["Sí", "NO"])
+        datos["Personas no autorizadas"] = st.radio("¿Personas no autorizadas presentes?", ["Sí", "NO"])
+        datos["Corresponde con documentos"] = st.radio("¿Corresponde con documentos?", ["Sí", "NO"])
         datos["Mercancía prohibida"] = st.radio("¿Mercancía prohibida presente?", ["Sí", "NO"])
-        datos["Faltantes"] = st.radio("¿Faltantes respecto documentación?", ["Sí", "NO"])
-        datos["Sobrantes"] = st.radio("¿Sobrantes respecto documentación?", ["Sí", "NO"])
-        datos["Concepto"] = st.radio("Concepto:", ["Conforme", "No conforme"])
-
-    elif tipo == "MEYE: Material de empaque y embalaje.":
-        datos["Usuario"] = st.text_input("Usuario:")
-        datos["Placa"] = st.text_input("Placa del vehículo:")
-        datos["Descripción"] = st.text_area("Descripción de la mercancía:")
-        datos["Cantidad"] = st.text_input("Cantidad:")
-        datos["Momento"] = st.radio("Momento:", ["Cargue", "Descargue", "En piso", "Báscula", "Otro"])
-        datos["Acompañamiento"] = st.radio("¿Acompañamiento total?", ["Sí", "NO", "No aplica"])
-        datos["Coincide con documentos"] = st.radio("¿Coincide con documentos?", ["Sí", "NO"])
-        datos["Es material de empaque"] = st.radio("¿Es material de empaque?", ["Sí", "NO"])
-        datos["Controlado en AMIGO"] = st.radio("¿Controlado en AMIGO?", ["Sí", "NO"])
-        datos["Registro fotográfico"] = st.radio("¿Registro fotográfico realizado?", ["Sí", "NO"])
-        datos["Concepto"] = st.radio("Concepto:", ["Conforme", "No conforme"])
+        datos["Faltantes"] = st.radio("¿Faltantes evidentes?", ["Sí", "NO"])
+        datos["Sobrantes"] = st.radio("¿Sobrantes evidentes?", ["Sí", "NO"])
+        datos["Concepto"] = st.radio("Concepto de la verificación:", ["Conforme", "No conforme"])
 
     elif tipo == "Destrucción":
         datos["Usuario"] = st.text_input("Usuario:")
         datos["Placa"] = st.text_input("Placa del vehículo:")
-        datos["Descripción"] = st.text_area("Descripción de la mercancía:")
+        datos["Descripción"] = st.text_area("Descripción:")
         datos["Cantidad"] = st.text_input("Cantidad:")
         datos["Acta de destrucción"] = st.text_input("Acta de destrucción No.:")
-        datos["Corresponde a inventario"] = st.radio("¿Corresponde al inventario?", ["Sí", "NO"])
+        datos["Corresponde a inventario"] = st.radio("¿Corresponde a inventario?", ["Sí", "NO"])
         datos["Corresponde con acta"] = st.radio("¿Corresponde con el acta?", ["Sí", "NO"])
         datos["Concepto"] = st.radio("Concepto:", ["Conforme", "No conforme"])
 
-    enviar = st.form_submit_button("✅ Guardar y generar PDF")
-
-if enviar:
-    vacios = [k for k, v in datos.items() if isinstance(v, str) and not v.strip()]
-    if vacios:
-        st.error(f"Faltan campos obligatorios: {', '.join(vacios)}")
     else:
-        fila = list(datos.values())
-        append_row(sheet, fila)
-        pdf_file = f"verif_{tipo.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d%H%M')}.pdf"
-        gen_pdf(datos, pdf_file)
-        st.success("✅ Verificación guardada y PDF generado.")
-        with open(pdf_file, "rb") as f:
-            st.download_button("📄 Descargar PDF", f, file_name=pdf_file)
+        datos["Descripción"] = st.text_area("Descripción de la actividad/verificación:")
+        datos["Concepto"] = st.radio("Concepto de la verificación:", ["Conforme", "No conforme"])
+        datos["Observaciones adicionales"] = st.text_area("Observaciones adicionales (opcional):")
+
+    submit = st.form_submit_button("✅ Guardar y generar PDF")
+
+# ========= ENVÍO Y VALIDACIÓN =========
+if submit:
+    campos_vacios = [campo for campo, valor in datos.items() if isinstance(valor, str) and not valor.strip()]
+    if campos_vacios:
+        st.error(f"Faltan campos obligatorios: {', '.join(campos_vacios)}")
+    else:
+        sheet.append_row(list(datos.values()))
+        nombre_pdf = generar_pdf(datos, fotos, trazabilidad)
+        st.success("✅ Formulario guardado y PDF generado.")
+        with open(nombre_pdf, "rb") as f:
+            st.download_button("📄 Descargar PDF", f, file_name=nombre_pdf)
