@@ -1,5 +1,3 @@
-# --- INICIO DEL SCRIPT ---
-
 import streamlit as st
 from datetime import datetime
 import gspread
@@ -374,24 +372,26 @@ TIPOS_PREGUNTAS = {
 st.sidebar.success(f"Inspector: {st.session_state.nombre} – {st.session_state.cargo}")
 sheet = connect_sheets()
 
-tipo = st.selectbox("Tipo de verificación:", list(TIPOS_PREGUNTAS.keys()))
-st.subheader(f"Formulario - {tipo}")
+st.title("Lista de verificación Inspector de Operaciones")
 
 with st.form("formulario"):
+    st.markdown(f"**Funcionario:** {st.session_state.nombre}")
+    st.markdown(f"**Cargo:** {st.session_state.cargo}")
+
+    tipo = st.selectbox("Tipo de verificación:", list(TIPOS_PREGUNTAS.keys()))
+    trazabilidad = generar_trazabilidad(tipo)
     fecha = st.date_input("Fecha de verificación:", value=datetime.today())
     hora = st.time_input("Hora:")
     lugar = st.text_input("Lugar:")
-    trazabilidad = generar_trazabilidad(tipo)
-    fotos = st.file_uploader("Sube fotos de la verificación (opcional)", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
 
     datos = {
         "Trazabilidad": trazabilidad,
         "Tipo de verificación": tipo,
+        "Funcionario": st.session_state.nombre,
+        "Cargo": st.session_state.cargo,
         "Fecha": fecha.strftime("%Y-%m-%d"),
         "Hora": hora.strftime("%H:%M"),
-        "Lugar": lugar,
-        "Inspector": st.session_state.nombre,
-        "Cargo": st.session_state.cargo
+        "Lugar": lugar
     }
 
     for pregunta in TIPOS_PREGUNTAS[tipo]:
@@ -405,10 +405,14 @@ with st.form("formulario"):
         elif pregunta["type"] == "checkboxes":
             datos[label] = ", ".join(st.multiselect(label, pregunta["options"]))
 
-    submit = st.form_submit_button("✅ Guardar y generar PDF")
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        submit = st.form_submit_button("✅ Guardar y generar PDF")
+    with col2:
+        fotos = st.file_uploader("Sube fotos de la verificación (opcional)", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
 
 # ========== ENVÍO Y VALIDACIÓN ==========
-if submit:
+if 'submit' in locals() and submit:
     campos_vacios = [campo for campo, valor in datos.items() if isinstance(valor, str) and not valor.strip()]
     if campos_vacios:
         st.error(f"Faltan campos obligatorios: {', '.join(campos_vacios)}")
@@ -418,5 +422,3 @@ if submit:
         st.success("✅ Formulario guardado y PDF generado.")
         with open(nombre_pdf, "rb") as f:
             st.download_button("📄 Descargar PDF", f, file_name=nombre_pdf)
-
-# --- FIN DEL SCRIPT ---
