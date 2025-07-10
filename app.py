@@ -99,7 +99,6 @@ def generar_pdf(datos, fotos, trazabilidad):
     c.save()
     return archivo_pdf
 
-
 # ========== PREGUNTAS SEGÚN TIPO ==========
 TIPOS_PREGUNTAS = {
     "Salida de desperdicios y residuos del proceso productivo o de la prestación del servicio": [
@@ -372,10 +371,14 @@ sheet = connect_sheets()
 
 st.title("Lista de verificación Inspector de Operaciones")
 
+# Nombre y cargo manuales ANTES de la fecha y tipo
+nombre_funcionario = st.text_input("Nombre del funcionario")
+cargo_funcionario = st.text_input("Cargo del funcionario")
+
+# Elige tipo de verificación FUERA del formulario
+tipo = st.selectbox("Tipo de verificación:", list(TIPOS_PREGUNTAS.keys()))
+
 with st.form("formulario"):
-    nombre_funcionario = st.text_input("Nombre del funcionario")
-    cargo_funcionario = st.text_input("Cargo del funcionario")
-    tipo = st.selectbox("Tipo de verificación:", list(TIPOS_PREGUNTAS.keys()))
     trazabilidad = generar_trazabilidad(tipo)
     fecha = st.date_input("Fecha de verificación:", value=datetime.today())
     hora = st.time_input("Hora:")
@@ -406,7 +409,7 @@ with st.form("formulario"):
     with col1:
         submit = st.form_submit_button("✅ Guardar y generar PDF")
     with col2:
-        fotos = st.file_uploader("Sube fotos de la verificación (opcional)", type=["jpg", "jpeg", "png"], accept_multiple_files=True, label_visibility="visible")
+        fotos = st.file_uploader("Sube fotos de la verificación (opcional)", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
 
 # ========== ENVÍO Y VALIDACIÓN ==========
 if 'submit' in locals() and submit:
