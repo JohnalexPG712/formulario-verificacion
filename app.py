@@ -107,26 +107,6 @@ def generar_pdf(datos, fotos, trazabilidad):
 
 # ========== PREGUNTAS SEGÚN TIPO ==========
 TIPOS_PREGUNTAS = {
-    # --- Pega aquí el gran diccionario de los 20 tipos, lo tienes en el mensaje anterior ---
-    
-    "Salida de desperdicios y residuos del proceso productivo o de la prestación del servicio": [
-        {"label": "Usuario", "type": "text"},
-        {"label": "Placa del vehículo", "type": "text"},
-        {"label": "No. FMM", "type": "text"},
-        {"label": "Descripción de la mercancía", "type": "textarea"},
-        {"label": "Cantidades (bultos o unidades)", "type": "text"},
-        {"label": "¿La salida es parcializada?", "type": "radio", "options": ["SI", "NO"]},
-        {"label": "¿En que momento se realizó inspección física?", "type": "radio", "options": ["Cargue o descargue", "Mercancía en Piso", "Báscula", "Otro"]},
-        {"label": "¿Cual? (si selecciona Otro en la pregunta anterior)", "type": "text"},
-        {"label": "¿Acompañamiento a la totalidad del cargue / descargue?", "type": "radio", "options": ["SI", "NO", "No aplica"]},
-        {"label": "¿La mercancía física corresponde con la descripción de los documentos?", "type": "radio", "options": ["SI", "NO"]},
-        {"label": "¿La mercancía a retirar corresponde con la descripción y origen reportada por el usuario?", "type": "radio", "options": ["SI", "NO"]},
-        {"label": "¿Se evidencian divisas, armas, estupefacientes, narcóticos o mercancía prohibida?", "type": "radio", "options": ["SI", "NO"]},
-        {"label": "¿Faltantes respecto a la documentación soporte?", "type": "radio", "options": ["SI", "NO"]},
-        {"label": "Concepto de la verificación", "type": "radio", "options": ["Conforme", "No conforme"]},
-    ],
-    # ... Pega aquí los otros 19 tipos siguiendo el formato del mensaje anterior ...
-    TIPOS_PREGUNTAS = {
     "Salida de desperdicios y residuos del proceso productivo o de la prestación del servicio": [
         {"label": "Usuario", "type": "text"},
         {"label": "Placa del vehículo", "type": "text"},
