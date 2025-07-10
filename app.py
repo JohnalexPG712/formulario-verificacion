@@ -110,7 +110,6 @@ sheet = connect_sheets()
 
 tipo = st.selectbox("Tipo de verificación:", [
     "MEYE: Material de empaque y embalaje.",
-    "MEE", "MEC",
     "Salida de desperdicios y residuos del proceso productivo o de la prestación del servicio.",
     "Destrucción.",
     "Diferencias de peso (+-5%) en mercancías menores o iguales 100 Kg.",
