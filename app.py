@@ -369,13 +369,14 @@ st.sidebar.success(f"Usuario: {st.session_state.username}")
 
 sheet = connect_sheets()
 
+# Título grande y destacado siempre arriba
 st.title("Lista de verificación Inspector de Operaciones")
 
-# Nombre y cargo manuales ANTES de la fecha y tipo
+# Campos manuales antes del formulario
 nombre_funcionario = st.text_input("Nombre del funcionario")
 cargo_funcionario = st.text_input("Cargo del funcionario")
 
-# Elige tipo de verificación FUERA del formulario
+# Tipo de verificación fuera del formulario para refresco dinámico
 tipo = st.selectbox("Tipo de verificación:", list(TIPOS_PREGUNTAS.keys()))
 
 with st.form("formulario"):
@@ -405,19 +406,13 @@ with st.form("formulario"):
         elif pregunta["type"] == "checkboxes":
             datos[label] = ", ".join(st.multiselect(label, pregunta["options"]))
 
-    # Distribución horizontal: botón y carga de fotos
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        submit = st.form_submit_button("✅ Guardar y generar PDF")
-
-    # Uploader debajo, ocupando todo el ancho
-    st.markdown("")  # Espacio opcional
+    # Botón y uploader, uno debajo del otro, uploader alargado
+    submit = st.form_submit_button("✅ Guardar y generar PDF")
     fotos = st.file_uploader(
         "Sube fotos de la verificación (opcional)",
         type=["jpg", "jpeg", "png"],
         accept_multiple_files=True,
-        label_visibility="visible",
-        key="fotos_verificacion"
+        label_visibility="visible"
     )
     # Puedes agregar un separador visual si lo deseas:
     # st.markdown("---")
