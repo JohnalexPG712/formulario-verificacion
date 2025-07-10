@@ -409,12 +409,18 @@ with st.form("formulario"):
     col1, col2 = st.columns([1, 2])
     with col1:
         submit = st.form_submit_button("✅ Guardar y generar PDF")
-        fotos = st.file_uploader(
-            "Sube fotos de la verificación (opcional)",
-            type=["jpg", "jpeg", "png"],
-            accept_multiple_files=True,
-            label_visibility="visible"
-        )
+
+    # Uploader debajo, ocupando todo el ancho
+    st.markdown("")  # Espacio opcional
+    fotos = st.file_uploader(
+        "Sube fotos de la verificación (opcional)",
+        type=["jpg", "jpeg", "png"],
+        accept_multiple_files=True,
+        label_visibility="visible",
+        key="fotos_verificacion"
+    )
+    # Puedes agregar un separador visual si lo deseas:
+    # st.markdown("---")
 # ========== ENVÍO Y VALIDACIÓN ==========
 if 'submit' in locals() and submit:
     campos_vacios = [campo for campo, valor in datos.items() if isinstance(valor, str) and not valor.strip()]
