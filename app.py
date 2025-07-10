@@ -9,7 +9,7 @@ import os
 import json
 import uuid
 
-# ========= LOGIN =========
+# ========== LOGIN ==========
 USER_CREDENTIALS = {
     "inspector1": {"password": "123", "nombre": "Carlos Pérez", "cargo": "Inspector A"},
     "inspector2": {"password": "456", "nombre": "Laura Gómez", "cargo": "Inspector B"},
@@ -36,11 +36,11 @@ if not st.session_state.logged_in:
                 st.error("Credenciales incorrectas")
     st.stop()
 
-# ========= CARGAR CREDENCIALES GOOGLE =========
+# ========== CARGAR CREDENCIALES GOOGLE ==========
 with open("credenciales.json", "w") as f:
     json.dump(dict(st.secrets["credenciales_json"]), f)
 
-# ========= CONEXIÓN A GOOGLE SHEETS =========
+# ========== CONEXIÓN A GOOGLE SHEETS ==========
 def connect_sheets():
     scope = [
         "https://spreadsheets.google.com/feeds",
@@ -51,17 +51,23 @@ def connect_sheets():
     client = gspread.authorize(creds)
     return client.open("F6O-OP-04V2 - Lista de Verificación del Inspector de Operaciones Prueba").sheet1
 
-# ========= GENERAR TRAZABILIDAD =========
+# ========== GENERAR TRAZABILIDAD ==========
 def generar_trazabilidad(tipo):
     fecha = datetime.now().strftime("%Y%m%d")
     codigo = uuid.uuid4().hex[:4].upper()
     return f"F6O-{tipo.upper().split()[0]}-{fecha}-{codigo}"
 
-# ========= GENERAR PDF CON FOTOS =========
+# ========== GENERAR PDF CON LOGO Y FOTOS ==========
 def generar_pdf(datos, fotos, trazabilidad):
     archivo_pdf = f"{trazabilidad}.pdf"
     c = canvas.Canvas(archivo_pdf, pagesize=A4)
     y = 800
+
+    # Logo
+    logo_path = "logo.png"
+    if os.path.exists(logo_path):
+        c.drawImage(logo_path, 50, y-40, width=100, height=50)
+        y -= 60
 
     c.setFont("Helvetica-Bold", 12)
     c.drawString(50, y, f"FORMULARIO DE VERIFICACIÓN - {trazabilidad}")
@@ -81,13 +87,15 @@ def generar_pdf(datos, fotos, trazabilidad):
                 img = Image.open(foto)
                 img.thumbnail((300, 300))
                 temp_path = f"imagenes/temp_{uuid.uuid4().hex}.jpg"
+                os.makedirs("imagenes", exist_ok=True)
                 img.save(temp_path)
                 c.drawImage(temp_path, 50, y - 200, width=250, height=150)
                 y -= 220
+                os.remove(temp_path)
                 if y < 200:
                     c.showPage()
                     y = 800
-            except:
+            except Exception as e:
                 c.drawString(50, y, "[Error al cargar imagen]")
                 y -= 20
 
@@ -95,87 +103,284 @@ def generar_pdf(datos, fotos, trazabilidad):
     c.save()
     return archivo_pdf
 
-# ========= FORMULARIO DINÁMICO =========
-st.sidebar.success(f"Inspector: {st.session_state.nombre} – {st.session_state.cargo}")
-sheet = connect_sheets()
+# ========== PREGUNTAS SEGÚN TIPO ==========
+TIPOS_PREGUNTAS = {
+    "Salida de desperdicios y residuos del proceso productivo o de la prestación del servicio": [
+        {"label": "Usuario", "type": "text"},
+        {"label": "Placa del vehículo", "type": "text"},
+        {"label": "No. FMM", "type": "text"},
+        {"label": "Descripción de la mercancía", "type": "textarea"},
+        {"label": "Cantidades (bultos o unidades)", "type": "text"},
+        {"label": "¿La salida es parcializada?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿En que momento se realizó inspección física?", "type": "radio", "options": ["Cargue o descargue", "Mercancía en Piso", "Báscula", "Otro"]},
+        {"label": "¿Cual? (si selecciona Otro en la pregunta anterior)", "type": "text"},
+        {"label": "¿Acompañamiento a la totalidad del cargue / descargue?", "type": "radio", "options": ["SI", "NO", "No aplica"]},
+        {"label": "¿La mercancía física corresponde con la descripción de los documentos?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿La mercancía a retirar corresponde con la descripción y origen reportada por el usuario?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Se evidencian divisas, armas, estupefacientes, narcóticos o mercancía prohibida?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Faltantes respecto a la documentación soporte?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "Concepto de la verificación", "type": "radio", "options": ["Conforme", "No conforme"]},
+    ],
+    "Destrucción": [
+        {"label": "Usuario", "type": "text"},
+        {"label": "Proveedor / Cliente", "type": "text"},
+        {"label": "Placa del vehículo", "type": "text"},
+        {"label": "No. FMM", "type": "text"},
+        {"label": "Tipo y número de documento comercial que ampara la operación", "type": "text"},
+        {"label": "Descripción de la mercancía", "type": "textarea"},
+        {"label": "Cantidades (bultos o unidades)", "type": "text"},
+        {"label": "¿La salida es parcializada?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿En qué estado se encuentra la mercancía?", "type": "checkboxes", "options": ["Descomposición", "Daño total", "Demerito absoluto", "Deterioro"]},
+        {"label": "¿En que momento se realizó inspección física?", "type": "radio", "options": ["Cargue o descargue", "Mercancía en Piso", "Báscula", "Otro"]},
+        {"label": "¿Cual? (si selecciona Otro en la pregunta anterior)", "type": "text"},
+        {"label": "¿Acompañamiento a la totalidad del cargue / descargue?", "type": "radio", "options": ["SI", "NO", "No aplica"]},
+        {"label": "¿La mercancía física corresponde con la descripción de los documentos?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Se evidencian divisas, armas, estupefacientes, narcóticos o mercancía prohibida?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "Concepto de la verificación", "type": "radio", "options": ["Conforme", "No conforme"]},
+    ],
+    "Diferencias de peso (+-5%) en mercancías menores o iguales 100 Kg.": [
+        {"label": "Usuario", "type": "text"},
+        {"label": "Placa del vehículo", "type": "text"},
+        {"label": "No. FMM", "type": "text"},
+        {"label": "Descripción de la mercancía", "type": "textarea"},
+        {"label": "Cantidades (bultos o unidades)", "type": "text"},
+        {"label": "¿La salida es parcializada?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿La mercancía física corresponde con la descripción de los documentos?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Se evidencian divisas, armas, estupefacientes, narcóticos o mercancía prohibida?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Faltantes respecto a la documentación soporte?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Sobrantes respecto a la documentación soporte?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Irregularidades en los bultos?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "Concepto de la verificación", "type": "radio", "options": ["Conforme", "No conforme"]},
+    ],
+    "Inspección de mantenimiento de Contenedores o unidades de carga.": [
+        {"label": "Usuario", "type": "text"},
+        {"label": "Proveedor / Cliente", "type": "text"},
+        {"label": "Placa del vehículo", "type": "text"},
+        {"label": "No. de unidad de carga", "type": "text"},
+        {"label": "Remolque", "type": "text"},
+        {"label": "Motivo de la Reparación o el mantenimiento", "type": "textarea"},
+        {"label": "¿Se evidencian divisas, armas, estupefacientes, narcóticos o mercancía prohibida?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "Concepto de la verificación", "type": "radio", "options": ["Conforme", "No conforme"]},
+    ],
+    "Inventarios de vehículos usuarios de Patios.": [
+        {"label": "Usuario", "type": "text"},
+        {"label": "Descripción de la mercancía", "type": "textarea"},
+        {"label": "¿Cual es la muestra de chasis? (cantidades a verificar)", "type": "text"},
+        {"label": "% de inventario auditado respecto al total actual en inventario", "type": "text"},
+        {"label": "Relacione el listado de chasises auditados", "type": "textarea"},
+        {"label": "¿El área calificada o autorizada está señalizada o demarcada?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "Si la respuesta es si, marque a continuación:", "type": "checkboxes", "options": ["Linderos con soga", "Demarcación de piso", "Otro"]},
+        {"label": "¿Cúal? (si selecciona Otro en la pregunta anterior)", "type": "text"},
+        {"label": "¿La mercancía inspeccionada esta ubicada en el área correspondiente al usuario al cual se le endosó o consignó dicha mercancía?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Hay otras personas naturales o jurídicas no autorizadas como empresas de apoyo o proveedores de servicio operando al interior de las instalaciones del usuario?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Se evidencian divisas, armas, estupefacientes, narcóticos o mercancía prohibida?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "Concepto de la verificación", "type": "radio", "options": ["Conforme", "No conforme"]},
+    ],
+    "Modificación de área.": [
+        {"label": "Usuario", "type": "text"},
+        {"label": "¿El usuario acató los cambios en el área calificada o declarada al usuario según documento?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿El área calificada o autorizada está señalizada o demarcada?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "Si la respuesta es si, marque a continuación:", "type": "checkboxes", "options": ["Linderos con soga", "Demarcación de piso", "Otro"]},
+        {"label": "¿Cúal? (si selecciona Otro en la pregunta anterior)", "type": "text"},
+        {"label": "¿La mercancía inspeccionada esta ubicada en el área correspondiente al usuario al cual se le endosó o consignó dicha mercancía?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿El nivel de ocupación la bodega permite realizar la inspección?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Hay otras personas naturales o jurídicas no autorizadas como empresas de apoyo o proveedores de servicio operando al interior de las instalaciones del usuario?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Se evidencian divisas, armas, estupefacientes, narcóticos o mercancía prohibida?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "Relacione los aspectos más relevantes revisados en el recorrido", "type": "textarea"},
+        {"label": "Concepto de la verificación", "type": "radio", "options": ["Conforme", "No conforme"]},
+    ],
+    "Reimportación en el mismo estado.": [
+        {"label": "Usuario", "type": "text"},
+        {"label": "Proveedor / Cliente", "type": "text"},
+        {"label": "Placa del vehículo", "type": "text"},
+        {"label": "No. FMM", "type": "text"},
+        {"label": "Tipo y número de documento comercial que ampara la operación", "type": "text"},
+        {"label": "Descripción de la mercancía", "type": "textarea"},
+        {"label": "Cantidades (bultos o unidades)", "type": "text"},
+        {"label": "¿En que momento se realizó inspección física?", "type": "radio", "options": ["Cargue o descargue", "Mercancía en Piso", "Báscula", "Otro"]},
+        {"label": "¿Cual? (si selecciona Otro en la pregunta anterior)", "type": "text"},
+        {"label": "¿Acompañamiento a la totalidad del cargue / descargue?", "type": "radio", "options": ["SI", "NO", "No aplica"]},
+        {"label": "¿La mercancía física corresponde con la descripción de los documentos?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿La mercancía fue objeto de transformación durante el tiempo de permanencia en la zona franca?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Se evidencian divisas, armas, estupefacientes, narcóticos o mercancía prohibida?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "Concepto de la verificación", "type": "radio", "options": ["Conforme", "No conforme"]},
+    ],
+    "Residuos peligrosos y/o Contaminados que no hacen parte del proceso productivo o prestación del servicio.": [
+        {"label": "Usuario", "type": "text"},
+        {"label": "Proveedor / Cliente", "type": "text"},
+        {"label": "Placa del vehículo", "type": "text"},
+        {"label": "Descripción de la mercancía", "type": "textarea"},
+        {"label": "Cantidades (bultos o unidades)", "type": "text"},
+        {"label": "¿En que momento se realizó inspección física?", "type": "radio", "options": ["Cargue o descargue", "Mercancía en Piso", "Báscula", "Otro"]},
+        {"label": "¿Cual? (si selecciona Otro en la pregunta anterior)", "type": "text"},
+        {"label": "¿Acompañamiento a la totalidad del cargue / descargue?", "type": "radio", "options": ["SI", "NO", "No aplica"]},
+        {"label": "¿La mercancía física corresponde con la descripción de los documentos?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Se evidencian divisas, armas, estupefacientes, narcóticos o mercancía prohibida?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "Concepto de la verificación", "type": "radio", "options": ["Conforme", "No conforme"]},
+    ],
+    "Salida de chatarra que no hace parte del proceso productivo o prestación del servicio.": [
+        {"label": "Usuario", "type": "text"},
+        {"label": "Proveedor / Cliente", "type": "text"},
+        {"label": "Placa del vehículo", "type": "text"},
+        {"label": "Descripción de la mercancía", "type": "textarea"},
+        {"label": "Cantidades (bultos o unidades)", "type": "text"},
+        {"label": "¿En que momento se realizó inspección física?", "type": "radio", "options": ["Cargue o descargue", "Mercancía en Piso", "Báscula", "Otro"]},
+        {"label": "¿Cual? (si selecciona Otro en la pregunta anterior)", "type": "text"},
+        {"label": "¿Acompañamiento a la totalidad del cargue / descargue?", "type": "radio", "options": ["SI", "NO", "No aplica"]},
+        {"label": "¿La mercancía física corresponde con la descripción de los documentos?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Se evidencian divisas, armas, estupefacientes, narcóticos o mercancía prohibida?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "Concepto de la verificación", "type": "radio", "options": ["Conforme", "No conforme"]},
+    ],
+    "Salida a Proceso Parcial y/o pruebas técnicas.": [
+        {"label": "Usuario", "type": "text"},
+        {"label": "Proveedor / Cliente", "type": "text"},
+        {"label": "Placa del vehículo", "type": "text"},
+        {"label": "No. FMM", "type": "text"},
+        {"label": "Descripción de la mercancía", "type": "textarea"},
+        {"label": "Cantidades (bultos o unidades)", "type": "text"},
+        {"label": "¿Ingresa el desperdicio del proceso?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿La mercancía física corresponde con la descripción de los documentos?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Se evidencian divisas, armas, estupefacientes, narcóticos o mercancía prohibida?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "Concepto de la verificación", "type": "radio", "options": ["Conforme", "No conforme"]},
+    ],
+    "Salida a Revisión, Reparación y/o Mantenimiento, pruebas técnicas.": [
+        {"label": "Usuario", "type": "text"},
+        {"label": "Proveedor / Cliente", "type": "text"},
+        {"label": "Placa del vehículo", "type": "text"},
+        {"label": "No. FMM", "type": "text"},
+        {"label": "Descripción de la mercancía", "type": "textarea"},
+        {"label": "Cantidades (bultos o unidades)", "type": "text"},
+        {"label": "¿La mercancía física corresponde con la descripción de los documentos?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Se evidencian divisas, armas, estupefacientes, narcóticos o mercancía prohibida?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "Concepto de la verificación", "type": "radio", "options": ["Conforme", "No conforme"]},
+    ],
+    "Reingreso por Proceso Parcial y/o pruebas técnicas.": [
+        {"label": "Usuario", "type": "text"},
+        {"label": "Proveedor / Cliente", "type": "text"},
+        {"label": "Placa del vehículo", "type": "text"},
+        {"label": "No. FMM", "type": "text"},
+        {"label": "Tipo y número de documento comercial que ampara la operación", "type": "text"},
+        {"label": "Descripción de la mercancía", "type": "textarea"},
+        {"label": "Cantidades (bultos o unidades)", "type": "text"},
+        {"label": "¿La mercancía física corresponde con la descripción de los documentos?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿La mercancía fue objeto de transformación durante el tiempo de permanencia fuera de la zona franca?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Ingresa el desperdicio del proceso?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Se evidencian divisas, armas, estupefacientes, narcóticos o mercancía prohibida?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "Concepto de la verificación", "type": "radio", "options": ["Conforme", "No conforme"]},
+    ],
+    "Reingreso por Revisión, Reparación y/o Mantenimiento, pruebas técnicas.": [
+        {"label": "Usuario", "type": "text"},
+        {"label": "Proveedor / Cliente", "type": "text"},
+        {"label": "Placa del vehículo", "type": "text"},
+        {"label": "No. FMM", "type": "text"},
+        {"label": "Tipo y número de documento comercial que ampara la operación", "type": "text"},
+        {"label": "Descripción de la mercancía", "type": "textarea"},
+        {"label": "Cantidades (bultos o unidades)", "type": "text"},
+        {"label": "Motivo de la Reparación o el mantenimiento", "type": "textarea"},
+        {"label": "¿La mercancía física corresponde con la descripción de los documentos?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿La mercancía fue objeto de transformación durante el tiempo de permanencia fuera de la zona franca?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Ingresa el desperdicio del proceso?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Se evidencian divisas, armas, estupefacientes, narcóticos o mercancía prohibida?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "Concepto de la verificación", "type": "radio", "options": ["Conforme", "No conforme"]},
+    ],
+    "Acompañamiento en el ingreso y salida de mercancía que no es para ningún usuario.": [
+        {"label": "Usuario", "type": "text"},
+        {"label": "Proveedor / Cliente", "type": "text"},
+        {"label": "Placa del vehículo", "type": "text"},
+        {"label": "Descripción de la mercancía", "type": "textarea"},
+        {"label": "Cantidades (bultos o unidades)", "type": "text"},
+        {"label": "¿Se evidencian divisas, armas, estupefacientes, narcóticos o mercancía prohibida?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "Concepto de la verificación", "type": "radio", "options": ["Conforme", "No conforme"]},
+    ],
+    "Cerramiento perimetral.": [
+        {"label": "Relacione los aspectos más relevantes revisados en el recorrido", "type": "textarea"},
+    ],
+    "Conteo": [
+        {"label": "Usuario", "type": "text"},
+        {"label": "Tipo y número de documento comercial que ampara la operación", "type": "text"},
+        {"label": "Descripción de la mercancía", "type": "textarea"},
+        {"label": "Cantidades (bultos o unidades)", "type": "text"},
+        {"label": "¿La mercancía inspeccionada está ubicada en el área correspondiente al usuario al cual se le endosó o consignó dicha mercancía?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿El nivel de ocupación la bodega permite realizar la inspección?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Hay otras personas naturales o jurídicas no autorizadas como empresas de apoyo o proveedores de servicio operando al interior de las instalaciones del usuario?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿La mercancía física corresponde con la descripción de los documentos?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Se evidencian divisas, armas, estupefacientes, narcóticos o mercancía prohibida?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Faltantes respecto a la documentación soporte?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Sobrantes respecto a la documentación soporte?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "Concepto de la verificación", "type": "radio", "options": ["Conforme", "No conforme"]},
+    ],
+    "Recorrido general al parque industrial o área declarada como Zona Franca.": [
+        {"label": "¿El área calificada o autorizada está señalizada o demarcada?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "Relacione los aspectos más relevantes revisados en el recorrido", "type": "textarea"},
+    ],
+    "Verificación ingresos del TAN con SAE.": [
+        {"label": "Usuario", "type": "text"},
+        {"label": "Placa del vehículo", "type": "text"},
+        {"label": "No. FMM", "type": "text"},
+        {"label": "Remolque", "type": "text"},
+        {"label": "Descripción de la mercancía", "type": "textarea"},
+        {"label": "Cantidades (bultos o unidades)", "type": "text"},
+        {"label": "¿En que momento se realizó inspección física?", "type": "radio", "options": ["Cargue o descargue", "Mercancía en Piso", "Báscula", "Otro"]},
+        {"label": "¿Cual? (si selecciona Otro en la pregunta anterior)", "type": "text"},
+        {"label": "¿Acompañamiento a la totalidad del cargue / descargue?", "type": "radio", "options": ["SI", "NO", "No aplica"]},
+        {"label": "¿La mercancía física corresponde con la descripción de los documentos?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿La mercancía fue objeto de transformación durante el tiempo de permanencia en la zona franca?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿La mercancía fue objeto de transformación durante el tiempo de permanencia fuera de la zona franca?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Faltantes respecto a la documentación soporte?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Sobrantes respecto a la documentación soporte?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Irregularidades en los bultos?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "Concepto de la verificación", "type": "radio", "options": ["Conforme", "No conforme"]},
+    ],
+    "Traslado de mercancía entre usuarios.": [
+        {"label": "Usuario", "type": "text"},
+        {"label": "Placa del vehículo", "type": "text"},
+        {"label": "No. FMM", "type": "text"},
+        {"label": "Tipo y número de documento comercial que ampara la operación", "type": "text"},
+        {"label": "No. Documento de transporte", "type": "text"},
+        {"label": "No. de unidad de carga", "type": "text"},
+        {"label": "Remolque", "type": "text"},
+        {"label": "Descripción de la mercancía", "type": "textarea"},
+        {"label": "Cantidades (bultos o unidades)", "type": "text"},
+        {"label": "¿La salida es parcializada?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿En que momento se realizó inspección física?", "type": "radio", "options": ["Cargue o descargue", "Mercancía en Piso", "Báscula", "Otro"]},
+        {"label": "¿Cual? (si selecciona Otro en la pregunta anterior)", "type": "text"},
+        {"label": "¿Acompañamiento a la totalidad del cargue / descargue?", "type": "radio", "options": ["SI", "NO", "No aplica"]},
+        {"label": "¿La mercancía física corresponde con la descripción de los documentos?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿La mercancía a retirar corresponde con la descripción y origen reportada por el usuario?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Faltantes respecto a la documentación soporte?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Sobrantes respecto a la documentación soporte?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿Irregularidades en los bultos?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "Concepto de la verificación", "type": "radio", "options": ["Conforme", "No conforme"]},
+    ],
+    "MEYE: Material de empaque y embalaje.": [
+        {"label": "Usuario", "type": "text"},
+        {"label": "Placa del vehículo", "type": "text"},
+        {"label": "Descripción de la mercancía", "type": "textarea"},
+        {"label": "Cantidades (bultos o unidades)", "type": "text"},
+        {"label": "¿En que momento se realizó inspección física?", "type": "radio", "options": ["Cargue o descargue", "Mercancía en Piso", "Báscula", "Otro"]},
+        {"label": "¿Cual? (si selecciona Otro en la pregunta anterior)", "type": "text"},
+        {"label": "¿Acompañamiento a la totalidad del cargue / descargue?", "type": "radio", "options": ["SI", "NO", "No aplica"]},
+        {"label": "¿La mercancía física corresponde con la descripción de los documentos?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿La mercancía verificada corresponde efectivamente a material de empaque y embalaje?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "¿El material de empaque y embalaje a despachar se controla dentro del inventario del sistema AMIGO?", "type": "radio", "options": ["SI", "NO"]},
+        {"label": "Registro fotográfico de la diligencia de inspección realizado", "type": "radio", "options": ["SI"]},
+        {"label": "Concepto de la verificación", "type": "radio", "options": ["Conforme", "No conforme"]},
+    ],
+}
 
-# Lista de tipos
-tipos_verificacion = [
-    "Conteo",
-    "MEYE: Material de empaque y embalaje.",
-    "Destrucción",
-    "Salida de desperdicios y residuos del proceso productivo o de la prestación del servicio.",
-    "Diferencias de peso (+-5%) en mercancías menores o iguales 100 Kg.",
-    "Inspección de mantenimiento de Contenedores o unidades de carga.",
-    "Inventarios de vehículos usuarios de Patios.",
-    "Modificación de área.",
-    "Reimportación en el mismo estado.",
-    "Residuos peligrosos y/o Contaminados que no hacen parte del proceso productivo o prestación del servicio.",
-    "Salida de chatarra que no hace parte del proceso productivo o prestación del servicio.",
-    "Salida a Proceso Parcial y/o pruebas técnicas.",
-    "Salida a Revisión, Reparación y/o Mantenimiento, pruebas técnicas.",
-    "Reingreso por Proceso Parcial y/o pruebas técnicas.",
-    "Reingreso por Revisión, Reparación y/o Mantenimiento, pruebas técnicas.",
-    "Acompañamiento en el ingreso y salida de mercancía que no es para ningún usuario.",
-    "Cerramiento perimetral.",
-    "Recorrido general al parque industrial o área declarada como Zona Franca.",
-    "Verificación ingresos del TAN con SAE.",
-    "Traslado de mercancía entre usuarios."
-]
-
-tipo = st.selectbox("Tipo de verificación:", tipos_verificacion)
-st.subheader(f"Formulario - {tipo}")
-
-with st.form("formulario"):
-    fecha = st.date_input("Fecha de verificación:", value=datetime.today())
-    hora = st.time_input("Hora:")
-    lugar = st.text_input("Lugar:")
-    trazabilidad = generar_trazabilidad(tipo)
-    fotos = st.file_uploader("Sube fotos de la verificación (opcional)", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
-
-    datos = {
-        "Trazabilidad": trazabilidad,
-        "Tipo de verificación": tipo,
-        "Fecha": fecha.strftime("%Y-%m-%d"),
-        "Hora": hora.strftime("%H:%M"),
-        "Lugar": lugar,
-        "Inspector": st.session_state.nombre,
-        "Cargo": st.session_state.cargo
-    }
-
-    # Preguntas específicas según tipo
-    if tipo == "Conteo":
-        datos["Usuario"] = st.text_input("Usuario:")
-        datos["Documento"] = st.text_input("Tipo y número de documento comercial:")
-        datos["Descripción"] = st.text_area("Descripción de la mercancía:")
-        datos["Cantidad"] = st.text_input("Cantidad (bultos o unidades):")
-        datos["Ubicada en área correspondiente"] = st.radio("¿Ubicada en área correspondiente?", ["Sí", "NO"])
-        datos["Nivel ocupación adecuado"] = st.radio("¿Nivel ocupación permite inspección?", ["Sí", "NO"])
-        datos["Personas no autorizadas"] = st.radio("¿Personas no autorizadas presentes?", ["Sí", "NO"])
-        datos["Corresponde con documentos"] = st.radio("¿Corresponde con documentos?", ["Sí", "NO"])
-        datos["Mercancía prohibida"] = st.radio("¿Mercancía prohibida presente?", ["Sí", "NO"])
-        datos["Faltantes"] = st.radio("¿Faltantes evidentes?", ["Sí", "NO"])
-        datos["Sobrantes"] = st.radio("¿Sobrantes evidentes?", ["Sí", "NO"])
-        datos["Concepto"] = st.radio("Concepto de la verificación:", ["Conforme", "No conforme"])
-
-    elif tipo == "Destrucción":
-        datos["Usuario"] = st.text_input("Usuario:")
-        datos["Placa"] = st.text_input("Placa del vehículo:")
-        datos["Descripción"] = st.text_area("Descripción:")
-        datos["Cantidad"] = st.text_input("Cantidad:")
-        datos["Acta de destrucción"] = st.text_input("Acta de destrucción No.:")
-        datos["Corresponde a inventario"] = st.radio("¿Corresponde a inventario?", ["Sí", "NO"])
-        datos["Corresponde con acta"] = st.radio("¿Corresponde con el acta?", ["Sí", "NO"])
-        datos["Concepto"] = st.radio("Concepto:", ["Conforme", "No conforme"])
-
-    else:
-        datos["Descripción"] = st.text_area("Descripción de la actividad/verificación:")
-        datos["Concepto"] = st.radio("Concepto de la verificación:", ["Conforme", "No conforme"])
-        datos["Observaciones adicionales"] = st.text_area("Observaciones adicionales (opcional):")
-
+  for pregunta in TIPOS_PREGUNTAS[tipo]:
+    label = pregunta["label"]
+    if pregunta["type"] == "text":
+        datos[label] = st.text_input(label)
+    elif pregunta["type"] == "textarea":
+        datos[label] = st.text_area(label)
+    elif pregunta["type"] == "radio":
+        datos[label] = st.radio(label, pregunta["options"])
+    elif pregunta["type"] == "checkboxes":
+        datos[label] = ", ".join(st.multiselect(label, pregunta["options"]))
     submit = st.form_submit_button("✅ Guardar y generar PDF")
 
-# ========= ENVÍO Y VALIDACIÓN =========
+# ========== ENVÍO Y VALIDACIÓN ==========
 if submit:
     campos_vacios = [campo for campo, valor in datos.items() if isinstance(valor, str) and not valor.strip()]
     if campos_vacios:
