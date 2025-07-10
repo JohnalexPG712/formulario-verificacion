@@ -46,13 +46,13 @@ def connect_sheets():
     ]
     creds = ServiceAccountCredentials.from_json_keyfile_name("credenciales.json", scope)
     client = gspread.authorize(creds)
-    return client.open("F6O-OP-04V2 - Lista de Verificación del Inspector de Operaciones Prueba").sheet1
+    return client.open("FO-OP-064 - Lista de Verificación del Inspector de Operaciones Prueba").sheet1
 
 # ========== GENERAR TRAZABILIDAD ==========
 def generar_trazabilidad(tipo):
     fecha = datetime.now().strftime("%Y%m%d")
     codigo = uuid.uuid4().hex[:4].upper()
-    return f"F6O-{tipo.upper().split()[0]}-{fecha}-{codigo}"
+    return f"FO-OP-064-{tipo.upper().split()[0]}-{fecha}-{codigo}"
 
 # ========== GENERAR PDF CON LOGO Y FOTOS ==========
 def generar_pdf(datos, fotos, trazabilidad):
