@@ -405,12 +405,17 @@ with st.form("formulario"):
         elif pregunta["type"] == "checkboxes":
             datos[label] = ", ".join(st.multiselect(label, pregunta["options"]))
 
-    col1, col2 = st.columns([2, 1])
+    # Distribución horizontal: botón y carga de fotos
+    col1, col2 = st.columns([1, 1])
     with col1:
         submit = st.form_submit_button("✅ Guardar y generar PDF")
     with col2:
-        fotos = st.file_uploader("Sube fotos de la verificación (opcional)", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
-
+        fotos = st.file_uploader(
+            "Sube fotos de la verificación (opcional)",
+            type=["jpg", "jpeg", "png"],
+            accept_multiple_files=True,
+            label_visibility="visible"
+        )
 # ========== ENVÍO Y VALIDACIÓN ==========
 if 'submit' in locals() and submit:
     campos_vacios = [campo for campo, valor in datos.items() if isinstance(valor, str) and not valor.strip()]
