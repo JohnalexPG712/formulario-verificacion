@@ -8,48 +8,32 @@ from PIL import Image
 import os
 import uuid
 import json
-import streamlit_authenticator as stauth
 
-# ============ 1. Autenticación funcional con hashes precalculados ============
-config = {
-    'credentials': {
-        'usernames': {
-            'inspector1': {
-                'name': 'Inspector 1',
-                'password': '$2b$12$ZT34fY6FjDu.7Hp6fayN/uUM0F1A5jaIfAVGlShNPfOQxi2A/sWha'  # 123
-            },
-            'inspector2': {
-                'name': 'Inspector 2',
-                'password': '$2b$12$gqCBTWq0OoqxzqMz0THLmu3Et.TMfMFx1gASgB/daDMvSnQAKkrQC'  # 456
-            }
-        }
-    },
-    'cookie': {
-        'name': 'verificador_cookie',
-        'key': 'firma_segura',
-        'expiry_days': 1
-    }
+# ============ 1. Login personalizado sin bcrypt ============
+USER_CREDENTIALS = {
+    "inspector1": "123",
+    "inspector2": "456"
 }
 
-auth = stauth.Authenticate(
-    config['credentials'],
-    config['cookie']['name'],
-    config['cookie']['key'],
-    config['cookie']['expiry_days']
-)
+st.title("Acceso")
 
-auth_status = auth.login(location="main")
+with st.form("login_form"):
+    username = st.text_input("Nombre de usuario")
+    password = st.text_input("Contraseña", type="password")
+    login_btn = st.form_submit_button("Acceder")
 
-if not auth_status:
-    if auth_status is False:
-        st.error("Usuario o contraseña incorrectos")
-    elif auth_status is None:
-        st.warning("Ingresa tus credenciales")
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+if login_btn:
+    if USER_CREDENTIALS.get(username) == password:
+        st.session_state.logged_in = True
+        st.session_state.username = username
+    else:
+        st.error("Credenciales incorrectas")
+
+if not st.session_state.logged_in:
     st.stop()
-
-name = auth.get_username()
-auth.logout("Cerrar sesión", "sidebar")
-st.sidebar.success(f"Bienvenido, {name}")
 
 # ============ 2. Leer credenciales de Google desde secrets ============
 with open("credenciales.json", "w") as f:
@@ -104,6 +88,7 @@ def gen_pdf(data, pics, sign, pdf_name):
     c.save()
 
 # ============ 5. Interfaz principal ============
+st.sidebar.success(f"Bienvenido, {st.session_state.username}")
 st.title("Formulario de Verificación Inspector de Operaciones")
 sheet = connect_sheets()
 
@@ -133,7 +118,7 @@ with st.form("formulario"):
 
 if enviar:
     fila = [
-        tipo, fecha.strftime("%Y-%m-%d"), hora.strftime("%H:%M"), lugar, name, "-", usuario, placa,
+        tipo, fecha.strftime("%Y-%m-%d"), hora.strftime("%H:%M"), lugar, st.session_state.username, "-", usuario, placa,
         descripcion, cantidad, momento, otro, "Sí" if acomp else "No", "Sí" if aplica else "No",
         docs_ok, material_ok, control_amigo, "Sí" if fotos_check else "No", concepto
     ]
