@@ -12,7 +12,8 @@ import json
 # ============ 1. Login personalizado sin bcrypt ============
 USER_CREDENTIALS = {
     "inspector1": "123",
-    "inspector2": "456"
+    "inspector2": "456",
+    "inspector3": "789"
 }
 
 st.title("Acceso")
@@ -92,8 +93,30 @@ st.sidebar.success(f"Bienvenido, {st.session_state.username}")
 st.title("Formulario de Verificación Inspector de Operaciones")
 sheet = connect_sheets()
 
-tipo = st.selectbox("Tipo de verificación:", ["MEYE", "MEE", "MEC"])
-
+tipo = st.selectbox("Tipo de verificación:", [
+    "MEYE: Material de empaque y embalaje.",
+    "MEE",
+    "MEC",
+    "Salida de desperdicios y residuos del proceso productivo o de la prestación del servicio.",
+    "Destrucción.",
+    "Diferencias de peso (+-5%) en mercancías menores o iguales 100 Kg.",
+    "Inspección de mantenimiento de Contenedores o unidades de carga.",
+    "Inventarios de vehículos usuarios de Patios.",
+    "Modificación de área.",
+    "Reimportación en el mismo estado.",
+    "Residuos peligrosos y/o Contaminados que no hacen parte del proceso productivo o prestación del servicio.",
+    "Salida de chatarra que no hace parte del proceso productivo o prestación del servicio.",
+    "Salida a Proceso Parcial y/o pruebas técnicas.",
+    "Salida a Revisión, Reparación y/o Mantenimiento, pruebas técnicas.",
+    "Reingreso por Proceso Parcial y/o pruebas técnicas.",
+    "Reingreso por Revisión, Reparación y/o Mantenimiento, pruebas técnicas.",
+    "Acompañamiento en el ingreso y salida de mercancía que no es para ningún usuario.",
+    "Cerramiento perimetral.",
+    "Conteo.",
+    "Recorrido general al parque industrial o área declarada como Zona Franca.",
+    "Verificación ingresos del TAN con SAE.",
+    "Traslado de mercancía entre usuarios."
+])
 with st.form("formulario"):
     fecha = st.date_input("Fecha:", value=datetime.today())
     hora = st.time_input("Hora:")
@@ -103,7 +126,7 @@ with st.form("formulario"):
     descripcion = st.text_area("Descripción de la mercancía:")
     cantidad = st.text_input("Cantidad:")
     momento = st.radio("Momento de inspección:", ["Cargue", "Descargue", "En piso", "Báscula", "Otro"])
-    otro = st.text_input("¿Cuál otro?", disabled=(momento != "Otro"))
+    otro = st.text_input("¿Cuál otro?", disabled=("otro" not in momento.lower()))
     acomp = st.checkbox("¿Acompañamiento total?")
     aplica = st.checkbox("¿No aplica?")
     docs_ok = st.radio("¿Corresponde a documentos?", ["Sí", "No"])
