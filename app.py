@@ -4,6 +4,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
 from PIL import Image
 import os
 import json
@@ -33,6 +34,16 @@ if not st.session_state.logged_in:
                 st.error("Credenciales incorrectas")
     st.stop()
 
+# ========== TÍTULO DEL FORMULARIO ==========
+st.markdown(
+    """
+    <div style='background-color: #f0f2f6; padding: 18px 8px 18px 8px; border-radius: 10px; margin-bottom: 18px; border: 1px solid #DDD;'>
+        <h2 style='color: #262730; text-align:center; margin:0;'>Lista de verificación Inspector de Operaciones</h2>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
 # ========== CARGAR CREDENCIALES GOOGLE ==========
 with open("credenciales.json", "w") as f:
     json.dump(dict(st.secrets["credenciales_json"]), f)
@@ -46,130 +57,172 @@ def connect_sheets():
     ]
     creds = ServiceAccountCredentials.from_json_keyfile_name("credenciales.json", scope)
     client = gspread.authorize(creds)
-    return client.open("FO-OP-064 - Lista de Verificación del Inspector de Operaciones Prueba").sheet1
+    return client.open("F6O-OP-04V2 - Lista de Verificación del Inspector de Operaciones Prueba").sheet1
 
 # ========== GENERAR TRAZABILIDAD ==========
 def generar_trazabilidad(tipo):
     fecha = datetime.now().strftime("%Y%m%d")
     codigo = uuid.uuid4().hex[:4].upper()
-    return f"FO-OP-064-{tipo.upper().split()[0]}-{fecha}-{codigo}"
+    return f"F6O-{tipo.upper().split()[0]}-{fecha}-{codigo}"
 
-# ========== GENERAR PDF CON LOGO Y FOTOS ==========
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.utils import ImageReader
+# ========== FUNCIONES AUXILIARES PARA PDF ==========
+def marcar_opcion_pdf(valor_seleccionado, opciones_disponibles):
+    # Genera la cadena para el PDF con cuadros y el valor seleccionado
+    # Ejemplo: "SI ☒ NO ☐"
+    result = []
+    for opcion in opciones_disponibles:
+        if isinstance(valor_seleccionado, list):
+            result.append(f"{opcion} {'☒' if opcion in valor_seleccionado else '☐'}")
+        else:
+            result.append(f"{opcion} {'☒' if str(opcion) == str(valor_seleccionado) else '☐'}")
+    return "   ".join(result)
 
-def marcar_opcion(valor, opciones):
-    # Devuelve una cadena como: SI [X]   NO [ ]
-    return "   ".join(f"{op} [{'X' if valor == op else ' '}]"
-                      for op in opciones)
-
+# ========== GENERAR PDF CON ESTRUCTURA OFICIAL ==========
 def generar_pdf(datos, fotos, trazabilidad):
     archivo_pdf = f"{trazabilidad}.pdf"
     c = canvas.Canvas(archivo_pdf, pagesize=A4)
     width, height = A4
-    y = height - 40
+    margin_left = 30
+    current_y = height - 30
 
-    # Título principal
+    blue_color = colors.Color(47/255, 82/255, 143/255)
+    light_blue_color = colors.Color(220/255, 230/255, 241/255)
+
+    # Título principal con fondo azul
+    c.setFillColor(blue_color)
+    c.rect(0, current_y - 20, width, 30, fill=1, stroke=0)
+    c.setFillColor(colors.white)
     c.setFont("Helvetica-Bold", 15)
-    c.drawCentredString(width/2, y, "LISTA DE VERIFICACIÓN DEL INSPECTOR DE OPERACIONES")
-    y -= 30
+    c.drawCentredString(width/2, current_y - 10, "LISTA DE VERIFICACIÓN DEL INSPECTOR DE OPERACIONES")
+    current_y -= 40
 
     # Consecutivo del documento
+    c.setFillColor(colors.black)
     c.setFont("Helvetica", 10)
-    c.drawString(50, y, f"Consecutivo del documento: {trazabilidad}")
-    y -= 20
+    c.drawString(margin_left, current_y, f"Consecutivo del documento: {trazabilidad}")
+    current_y -= 25
 
-    # DATOS GENERALES DE LA VERIFICACIÓN
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(50, y, "DATOS GENERALES DE LA VERIFICACIÓN")
-    y -= 18
+    # Bloque: DATOS GENERALES DE LA VERIFICACIÓN
+    block_height_general = 6 * 15 + 25
+    c.setFillColor(light_blue_color)
+    c.rect(margin_left - 5, current_y - block_height_general + 5, width - margin_left * 2 + 10, block_height_general, fill=1, stroke=0)
+    c.setFillColor(colors.black)
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(margin_left, current_y, "DATOS GENERALES DE LA VERIFICACIÓN")
+    current_y -= 15
     c.setFont("Helvetica", 10)
-    c.drawString(60, y, f"Tipo de Verificación: {datos.get('Tipo de verificación', '')}")
-    y -= 15
-    c.drawString(60, y, f"Cargo: {datos.get('Cargo', '')}")
-    y -= 15
-    c.drawString(60, y, f"Nombre del inspector: {datos.get('Funcionario', '')}")
-    y -= 15
-    c.drawString(60, y, f"Fecha: {datos.get('Fecha', '')}")
-    y -= 15
-    c.drawString(60, y, f"Hora: {datos.get('Hora', '')}")
-    y -= 15
-    c.drawString(60, y, f"Lugar: {datos.get('Lugar', '')}")
-    y -= 25
+    c.drawString(margin_left + 5, current_y, f"Tipo de Verificación: {datos.get('Tipo de verificación', '')}")
+    c.drawString(margin_left + 250, current_y, f"Cargo: {datos.get('Cargo', '')}")
+    current_y -= 15
+    c.drawString(margin_left + 5, current_y, f"Nombre del inspector: {datos.get('Funcionario', '')}")
+    c.drawString(margin_left + 250, current_y, f"Fecha: {datos.get('Fecha', '')}")
+    current_y -= 15
+    c.drawString(margin_left + 5, current_y, f"Hora: {datos.get('Hora', '')}")
+    c.drawString(margin_left + 250, current_y, f"Lugar: {datos.get('Lugar', '')}")
+    current_y -= 25
 
-    # RESUMEN DE LA VERIFICACIÓN
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(50, y, "RESUMEN DE LA VERIFICACIÓN")
-    y -= 18
+    # Bloque: RUTA DE ALMACENAMIENTO
+    c.setFillColor(light_blue_color)
+    c.rect(margin_left - 5, current_y - 15, width - margin_left * 2 + 10, 20, fill=1, stroke=0)
+    c.setFillColor(colors.black)
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(margin_left, current_y, "RUTA DE ALMACENAMIENTO O NOMBRE DE LA(S) CARPETA(S) CONTENEDORA(S) DE LOS REGISTROS FOTOGRÁFICOS")
+    current_y -= 25
     c.setFont("Helvetica", 10)
-
-    # Preguntas y respuestas
-    for campo, valor in datos.items():
-        if campo in ["Trazabilidad", "Tipo de verificación", "Funcionario", "Cargo", "Fecha", "Hora", "Lugar"]:
-            continue
-        # Opciones SI/NO, Conforme/No conforme, etc.
-        if isinstance(valor, str) and valor in ["SI", "NO"]:
-            c.drawString(60, y, f"{campo}: {marcar_opcion(valor, ['SI', 'NO'])}")
-        elif isinstance(valor, str) and valor in ["Conforme", "No conforme"]:
-            c.drawString(60, y, f"{campo}: {marcar_opcion(valor, ['Conforme', 'No conforme'])}")
-        elif isinstance(valor, str) and "," in valor and "SI" in valor and "NO" in valor:
-            # Para checkboxes múltiples
-            opciones = [v.strip() for v in valor.split(",")]
-            c.drawString(60, y, f"{campo}: {', '.join(opciones)}")
-        else:
-            c.drawString(60, y, f"{campo}: {valor}")
-        y -= 15
-        if y < 120:
-            c.showPage()
-            y = height - 40
-
-    # Ruta de almacenamiento de registros fotográficos
     if fotos:
-        c.setFont("Helvetica-Bold", 12)
-        c.drawString(50, y, "RUTA DE ALMACENAMIENTO O NOMBRE DE LA(S) CARPETA(S) CONTENEDORA(S) DE LOS REGISTROS FOTOGRÁFICOS")
-        y -= 18
-        c.setFont("Helvetica", 10)
         for i, foto in enumerate(fotos):
-            c.drawString(60, y, f"Foto {i+1}: {getattr(foto, 'name', f'foto_{i+1}.jpg')}")
-            y -= 15
-            if y < 120:
+            file_name = getattr(foto, 'name', f'foto_{i+1}.jpg')
+            c.drawString(margin_left + 5, current_y, f"• {file_name}")
+            current_y -= 13
+            if current_y < 120:
                 c.showPage()
-                y = height - 40
+                current_y = height - 40
+                c.setFillColor(colors.black)
+                c.setFont("Helvetica", 10)
+    else:
+        c.drawString(margin_left + 5, current_y, "No se adjuntaron registros fotográficos.")
+        current_y -= 13
+    current_y -= 10
 
-    # Observaciones y/o novedades (si tienes un campo específico)
-    if "Observaciones" in datos and datos["Observaciones"].strip():
-        c.setFont("Helvetica-Bold", 12)
-        c.drawString(50, y, "OBSERVACIONES Y/O NOVEDADES EVIDENCIADAS EN EL PROCESO DE VERIFICACIÓN")
-        y -= 18
-        c.setFont("Helvetica", 10)
-        c.drawString(60, y, datos["Observaciones"])
-        y -= 25
+    # Bloque: RESUMEN DE LA VERIFICACIÓN
+    c.setFillColor(light_blue_color)
+    c.rect(margin_left - 5, current_y - 15, width - margin_left * 2 + 10, 20, fill=1, stroke=0)
+    c.setFillColor(colors.black)
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(margin_left, current_y, "RESUMEN DE LA VERIFICACIÓN")
+    current_y -= 25
+    c.setFont("Helvetica", 10)
 
-    # Registro fotográfico
+    # Preguntas y respuestas dinámicas
+    for pregunta_def in TIPOS_PREGUNTAS[datos['Tipo de verificación']]:
+        label = pregunta_def['label']
+        valor = datos.get(label, "")
+
+        if pregunta_def['type'] == 'radio':
+            display_text = f"{label}: {marcar_opcion_pdf(valor, pregunta_def['options'])}"
+        elif pregunta_def['type'] == 'checkboxes':
+            options_selected = [s.strip() for s in valor.split(',')] if isinstance(valor, str) else []
+            formatted_options = []
+            for opt in pregunta_def['options']:
+                formatted_options.append(f"{opt} {'☒' if opt in options_selected else '☐'}")
+            display_text = f"{label}: {'   '.join(formatted_options)}"
+        else:
+            display_text = f"{label}: {valor}"
+
+        c.drawString(margin_left + 5, current_y, display_text)
+        current_y -= 13
+        if current_y < 120:
+            c.showPage()
+            current_y = height - 40
+            c.setFillColor(colors.black)
+            c.setFont("Helvetica", 10)
+
+    # Pregunta fija: Observaciones, siempre después de Concepto de la verificación
+    obs = datos.get("OBSERVACIONES Y/O NOVEDADES EVIDENCIADAS EN EL PROCESO DE VERIFICACIÓN", "")
+    c.setFillColor(light_blue_color)
+    c.rect(margin_left - 5, current_y - 15, width - margin_left * 2 + 10, 20, fill=1, stroke=0)
+    c.setFillColor(colors.black)
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(margin_left, current_y, "OBSERVACIONES Y/O NOVEDADES EVIDENCIADAS EN EL PROCESO DE VERIFICACIÓN")
+    current_y -= 25
+    c.setFont("Helvetica", 10)
+    c.drawString(margin_left + 5, current_y, obs if obs else "(No aplica)")
+    current_y -= 20
+
+    # Bloque: REGISTRO FOTOGRÁFICO
     if fotos:
         c.showPage()
-        y = height - 40
-        c.setFont("Helvetica-Bold", 12)
-        c.drawString(50, y, "REGISTRO FOTOGRÁFICO DE LA VERIFICACIÓN")
-        y -= 30
-        for foto in fotos:
+        current_y = height - 40
+        c.setFillColor(light_blue_color)
+        c.rect(margin_left - 5, current_y - 15, width - margin_left * 2 + 10, 20, fill=1, stroke=0)
+        c.setFillColor(colors.black)
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(margin_left, current_y, "REGISTRO FOTOGRÁFICO DE LA VERIFICACIÓN")
+        current_y -= 30
+        for i, foto in enumerate(fotos):
             try:
                 img = Image.open(foto)
                 img.thumbnail((350, 350))
                 temp_path = f"imagenes/temp_{uuid.uuid4().hex}.jpg"
                 os.makedirs("imagenes", exist_ok=True)
                 img.save(temp_path)
-                c.drawImage(temp_path, 50, y - 180, width=250, height=150)
-                y -= 170
-                os.remove(temp_path)
-                if y < 150:
+                draw_width = 250
+                draw_height = int((img.height / img.width) * draw_width)
+                img_x = margin_left + ((width - margin_left*2) - draw_width) / 2
+                if current_y - draw_height < 100:
                     c.showPage()
-                    y = height - 40
-            except Exception:
+                    current_y = height - 40
+                    c.setFillColor(colors.black)
+                    c.setFont("Helvetica-Bold", 11)
+                    c.drawString(margin_left, current_y, "REGISTRO FOTOGRÁFICO DE LA VERIFICACIÓN (Continuación)")
+                    current_y -= 30
+                c.drawImage(temp_path, img_x, current_y - draw_height - 10, width=draw_width, height=draw_height)
+                current_y -= (draw_height + 20)
+                os.remove(temp_path)
+            except Exception as e:
                 c.setFont("Helvetica", 10)
-                c.drawString(50, y, "[Error al cargar imagen]")
-                y -= 20
+                c.drawString(margin_left + 5, current_y, f"[Error al cargar imagen {i+1}: {e}]")
+                current_y -= 20
 
     c.save()
     return archivo_pdf
@@ -441,17 +494,10 @@ TIPOS_PREGUNTAS = {
 
 # ========== FORMULARIO DINÁMICO ==========
 st.sidebar.success(f"Usuario: {st.session_state.username}")
-
 sheet = connect_sheets()
 
-# Título grande y destacado siempre arriba
-st.title("Lista de verificación Inspector de Operaciones")
-
-# Campos manuales antes del formulario
 nombre_funcionario = st.text_input("Nombre del funcionario")
 cargo_funcionario = st.text_input("Cargo del funcionario")
-
-# Tipo de verificación fuera del formulario para refresco dinámico
 tipo = st.selectbox("Tipo de verificación:", list(TIPOS_PREGUNTAS.keys()))
 
 with st.form("formulario"):
@@ -481,17 +527,26 @@ with st.form("formulario"):
         elif pregunta["type"] == "checkboxes":
             datos[label] = ", ".join(st.multiselect(label, pregunta["options"]))
 
-    submit = st.form_submit_button("✅ Guardar y generar PDF")
-    fotos = st.file_uploader(
-        "Sube fotos de la verificación (opcional)",
-        type=["jpg", "jpeg", "png"],
-        accept_multiple_files=True,
-        label_visibility="visible"
+    # PREGUNTA FIJA: Observaciones
+    datos["OBSERVACIONES Y/O NOVEDADES EVIDENCIADAS EN EL PROCESO DE VERIFICACIÓN"] = st.text_area(
+        "OBSERVACIONES Y/O NOVEDADES EVIDENCIADAS EN EL PROCESO DE VERIFICACIÓN (si aplica)"
     )
+
+    # Botón y uploader alineados horizontalmente
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        submit = st.form_submit_button("✅ Guardar y generar PDF")
+    with col2:
+        fotos = st.file_uploader(
+            "Sube fotos de la verificación (opcional)",
+            type=["jpg", "jpeg", "png"],
+            accept_multiple_files=True,
+            label_visibility="visible"
+        )
 
 # ========== ENVÍO Y VALIDACIÓN ==========
 if 'submit' in locals() and submit:
-    campos_vacios = [campo for campo, valor in datos.items() if isinstance(valor, str) and not valor.strip()]
+    campos_vacios = [campo for campo, valor in datos.items() if isinstance(valor, str) and not valor.strip() and campo != "OBSERVACIONES Y/O NOVEDADES EVIDENCIADAS EN EL PROCESO DE VERIFICACIÓN"]
     if campos_vacios:
         st.error(f"Faltan campos obligatorios: {', '.join(campos_vacios)}")
     else:
