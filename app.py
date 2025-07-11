@@ -55,47 +55,122 @@ def generar_trazabilidad(tipo):
     return f"FO-OP-064-{tipo.upper().split()[0]}-{fecha}-{codigo}"
 
 # ========== GENERAR PDF CON LOGO Y FOTOS ==========
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.utils import ImageReader
+
+def marcar_opcion(valor, opciones):
+    # Devuelve una cadena como: SI [X]   NO [ ]
+    return "   ".join(f"{op} [{'X' if valor == op else ' '}]"
+                      for op in opciones)
+
 def generar_pdf(datos, fotos, trazabilidad):
     archivo_pdf = f"{trazabilidad}.pdf"
     c = canvas.Canvas(archivo_pdf, pagesize=A4)
-    y = 800
+    width, height = A4
+    y = height - 40
 
-    logo_path = "logo.png"
-    if os.path.exists(logo_path):
-        c.drawImage(logo_path, 50, y-40, width=100, height=50)
-        y -= 60
-
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(50, y, f"FORMULARIO DE VERIFICACIÓN - {trazabilidad}")
+    # Título principal
+    c.setFont("Helvetica-Bold", 15)
+    c.drawCentredString(width/2, y, "LISTA DE VERIFICACIÓN DEL INSPECTOR DE OPERACIONES")
     y -= 30
+
+    # Consecutivo del documento
+    c.setFont("Helvetica", 10)
+    c.drawString(50, y, f"Consecutivo del documento: {trazabilidad}")
+    y -= 20
+
+    # DATOS GENERALES DE LA VERIFICACIÓN
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(50, y, "DATOS GENERALES DE LA VERIFICACIÓN")
+    y -= 18
+    c.setFont("Helvetica", 10)
+    c.drawString(60, y, f"Tipo de Verificación: {datos.get('Tipo de verificación', '')}")
+    y -= 15
+    c.drawString(60, y, f"Cargo: {datos.get('Cargo', '')}")
+    y -= 15
+    c.drawString(60, y, f"Nombre del inspector: {datos.get('Funcionario', '')}")
+    y -= 15
+    c.drawString(60, y, f"Fecha: {datos.get('Fecha', '')}")
+    y -= 15
+    c.drawString(60, y, f"Hora: {datos.get('Hora', '')}")
+    y -= 15
+    c.drawString(60, y, f"Lugar: {datos.get('Lugar', '')}")
+    y -= 25
+
+    # RESUMEN DE LA VERIFICACIÓN
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(50, y, "RESUMEN DE LA VERIFICACIÓN")
+    y -= 18
     c.setFont("Helvetica", 10)
 
+    # Preguntas y respuestas
     for campo, valor in datos.items():
-        c.drawString(50, y, f"{campo}: {valor}")
-        y -= 20
-        if y < 150:
+        if campo in ["Trazabilidad", "Tipo de verificación", "Funcionario", "Cargo", "Fecha", "Hora", "Lugar"]:
+            continue
+        # Opciones SI/NO, Conforme/No conforme, etc.
+        if isinstance(valor, str) and valor in ["SI", "NO"]:
+            c.drawString(60, y, f"{campo}: {marcar_opcion(valor, ['SI', 'NO'])}")
+        elif isinstance(valor, str) and valor in ["Conforme", "No conforme"]:
+            c.drawString(60, y, f"{campo}: {marcar_opcion(valor, ['Conforme', 'No conforme'])}")
+        elif isinstance(valor, str) and "," in valor and "SI" in valor and "NO" in valor:
+            # Para checkboxes múltiples
+            opciones = [v.strip() for v in valor.split(",")]
+            c.drawString(60, y, f"{campo}: {', '.join(opciones)}")
+        else:
+            c.drawString(60, y, f"{campo}: {valor}")
+        y -= 15
+        if y < 120:
             c.showPage()
-            y = 800
+            y = height - 40
 
+    # Ruta de almacenamiento de registros fotográficos
     if fotos:
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(50, y, "RUTA DE ALMACENAMIENTO O NOMBRE DE LA(S) CARPETA(S) CONTENEDORA(S) DE LOS REGISTROS FOTOGRÁFICOS")
+        y -= 18
+        c.setFont("Helvetica", 10)
+        for i, foto in enumerate(fotos):
+            c.drawString(60, y, f"Foto {i+1}: {getattr(foto, 'name', f'foto_{i+1}.jpg')}")
+            y -= 15
+            if y < 120:
+                c.showPage()
+                y = height - 40
+
+    # Observaciones y/o novedades (si tienes un campo específico)
+    if "Observaciones" in datos and datos["Observaciones"].strip():
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(50, y, "OBSERVACIONES Y/O NOVEDADES EVIDENCIADAS EN EL PROCESO DE VERIFICACIÓN")
+        y -= 18
+        c.setFont("Helvetica", 10)
+        c.drawString(60, y, datos["Observaciones"])
+        y -= 25
+
+    # Registro fotográfico
+    if fotos:
+        c.showPage()
+        y = height - 40
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(50, y, "REGISTRO FOTOGRÁFICO DE LA VERIFICACIÓN")
+        y -= 30
         for foto in fotos:
             try:
                 img = Image.open(foto)
-                img.thumbnail((300, 300))
+                img.thumbnail((350, 350))
                 temp_path = f"imagenes/temp_{uuid.uuid4().hex}.jpg"
                 os.makedirs("imagenes", exist_ok=True)
                 img.save(temp_path)
-                c.drawImage(temp_path, 50, y - 200, width=250, height=150)
-                y -= 220
+                c.drawImage(temp_path, 50, y - 180, width=250, height=150)
+                y -= 170
                 os.remove(temp_path)
-                if y < 200:
+                if y < 150:
                     c.showPage()
-                    y = 800
-            except Exception as e:
+                    y = height - 40
+            except Exception:
+                c.setFont("Helvetica", 10)
                 c.drawString(50, y, "[Error al cargar imagen]")
                 y -= 20
 
-    c.showPage()
     c.save()
     return archivo_pdf
 
