@@ -57,7 +57,7 @@ def connect_sheets():
     ]
     creds = ServiceAccountCredentials.from_json_keyfile_name("credenciales.json", scope)
     client = gspread.authorize(creds)
-    return client.open("F6O-OP-04V2 - Lista de Verificación del Inspector de Operaciones Prueba").sheet1
+    return client.open("FO-OP-064 - Lista de Verificación del Inspector de Operaciones Prueba").sheet1
 
 # ========== GENERAR TRAZABILIDAD ==========
 def generar_trazabilidad(tipo):
