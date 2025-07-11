@@ -532,19 +532,17 @@ with st.form("formulario"):
         "OBSERVACIONES Y/O NOVEDADES EVIDENCIADAS EN EL PROCESO DE VERIFICACIÓN (si aplica)"
     )
 
-    # Botón y cargador alineados horizontalmente
-columna_1, columna_2 = calle.columnas([1, 2])
-
-with columna_1:
-    entregar = calle.botón_de_envío_de_formulario("✅ Guardar y generar PDF")
-
-with columna_2:
-    fotos = calle.cargador_de_archivos(
-        "Sube fotos de la verificación (opcional)",
-        tipo=["jpg", "jpeg", "png"],
-        aceptar_múltiples_archivos=True,
-        visibilidad_de_la_etiqueta="visible"
-    )
+  
+    # Botón y uploader alineados horizontalmente
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        submit = st.form_submit_button("✅ Guardar y generar PDF")
+    with col2:
+        fotos = st.file_uploader(
+            "Sube fotos de la verificación (opcional)",
+            type=["jpg", "jpeg", "png"],
+            accept_multiple_files=True,
+            label_visibility="visible"
 
 # ========== ENVÍO Y VALIDACIÓN ==========
 if 'submit' in locals() and submit:
