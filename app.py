@@ -532,18 +532,18 @@ with st.form("formulario"):
         "OBSERVACIONES Y/O NOVEDADES EVIDENCIADAS EN EL PROCESO DE VERIFICACIÓN (si aplica)"
     )
 
-  
-    # Botón y uploader alineados horizontalmente
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        submit = st.form_submit_button("✅ Guardar y generar PDF")
-    with col2:
-        fotos = st.file_uploader(
-            "Sube fotos de la verificación (opcional)",
-            type=["jpg", "jpeg", "png"],
-            accept_multiple_files=True,
-            label_visibility="visible"
+   # Botón centrado o alineado a la izquierda
+    submit = st.form_submit_button("✅ Guardar y generar PDF")
 
+    # Uploader debajo, ocupando todo el ancho
+    st.markdown("")  # Espacio opcional
+    fotos = st.file_uploader(
+        "Sube fotos de la verificación (opcional)",
+        type=["jpg", "jpeg", "png"],
+        accept_multiple_files=True,
+        label_visibility="visible",
+        key="fotos_verificacion"
+    )
 # ========== ENVÍO Y VALIDACIÓN ==========
 if 'submit' in locals() and submit:
     campos_vacios = [campo for campo, valor in datos.items() if isinstance(valor, str) and not valor.strip() and campo != "OBSERVACIONES Y/O NOVEDADES EVIDENCIADAS EN EL PROCESO DE VERIFICACIÓN"]
